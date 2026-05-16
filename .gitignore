@@ -1,6 +1,7 @@
-node_modules/  
-dist/  
-build/  
-.env  
-frontend/frontend/  
-backend/uploads/ 
+node_modules/
+dist/
+.env
+frontend/frontend/node_modules/
+frontend/frontend/build/
+frontend/frontend/.env
+backend/uploads/

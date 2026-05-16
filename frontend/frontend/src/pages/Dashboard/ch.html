@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Quản Lý Quán Cà Phê</title>
+    <style>
+        /* --- KHAI BÁO BIẾN MÀU (CSS VARIABLES) --- */
+        :root {
+            --bg-main: #F9F6F0;      /* Nền chính: Trắng kem */
+            --bg-surface: #FFFFFF;   /* Nền phụ (Card): Trắng */
+            --primary: #6F4E37;      /* Chủ đạo: Nâu Cà phê */
+            --accent: #D4A373;       /* Nhấn: Nâu Caramel */
+            --text-main: #2C2C2C;    /* Chữ chính: Xám đen */
+            --text-light: #FFFFFF;   /* Chữ trên nền đậm: Trắng */
+            
+            /* Màu trạng thái */
+            --success: #4CAF50;      /* Xanh: Hoàn thành/Đang dùng */
+            --warning: #FFC107;      /* Vàng: Chờ xử lý */
+            --danger: #F44336;       /* Đỏ: Hủy/Lỗi */
+        }
+
+        /* --- RESET & TYPOGRAPHY --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { display: flex; height: 100vh; background-color: var(--bg-main); color: var(--text-main); }
+
+        /* --- SIDEBAR (THANH ĐIỀU HƯỚNG TRÁI) --- */
+        .sidebar { 
+            width: 250px; 
+            background-color: var(--primary); 
+            color: var(--text-light); 
+            display: flex; 
+            flex-direction: column; 
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        .sidebar-header { padding: 24px; font-size: 1.5rem; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; }
+        .nav-item { padding: 16px 24px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 12px; }
+        .nav-item:hover { background-color: rgba(255,255,255,0.1); }
+        .nav-item.active { background-color: var(--accent); font-weight: bold; border-left: 4px solid var(--text-light); }
+
+        /* --- MAIN CONTENT (KHU VỰC CHÍNH) --- */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Top Bar */
+        .top-bar { 
+            background-color: var(--bg-surface); 
+            padding: 16px 32px; 
+            display: flex; justify-content: space-between; align-items: center; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02); 
+        }
+        
+        /* Buttons */
+        .btn { background-color: var(--primary); color: var(--text-light); border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn:hover { background-color: var(--accent); }
+        .btn-outline { background-color: transparent; color: var(--primary); border: 1px solid var(--primary); }
+        .btn-outline:hover { background-color: var(--primary); color: var(--text-light); }
+
+        /* Content Area */
+        .content { padding: 32px; overflow-y: auto; flex: 1; }
+        .page-title { margin-bottom: 24px; font-size: 1.8rem; font-weight: 600; }
+
+        /* --- TABLE GRID (DANH SÁCH BÀN) --- */
+        .table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; }
+        
+        .table-card { 
+            background-color: var(--bg-surface); 
+            border-radius: 12px; 
+            padding: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.04); 
+            border-top: 4px solid var(--primary); /* Mặc định bàn trống viền Nâu */
+            display: flex; flex-direction: column; gap: 12px; transition: transform 0.2s;
+        }
+        .table-card:hover { transform: translateY(-2px); }
+        .table-card.active { border-top-color: var(--success); }
+        .table-card.waiting { border-top-color: var(--warning); }
+
+        .table-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 1.2rem; }
+        
+        /* Badges */
+        .status-badge { font-size: 0.8rem; padding: 4px 10px; border-radius: 20px; color: #fff; font-weight: 500; }
+        .status-badge.empty { background-color: #E0E0E0; color: var(--text-main); }
+        .status-badge.active { background-color: var(--success); }
+        .status-badge.waiting { background-color: var(--warning); color: #000; }
+
+        /* Card Details & Actions */
+        .order-details { flex: 1; }
+        .order-total { font-size: 1.3rem; font-weight: bold; color: var(--primary); }
+        .order-items { color: #666; font-size: 0.9rem; margin-top: 6px; line-height: 1.4; }
+        
+        .table-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .table-actions button { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: 0.2s; }
+        .btn-action-primary { background-color: var(--primary); color: #fff; }
+        .btn-action-primary:hover { background-color: #5A3E2B; }
+        .btn-action-secondary { background-color: #F0F0F0; color: var(--text-main); }
+        .btn-action-secondary:hover { background-color: #E0E0E0; }
+        .btn-action-accent { background-color: var(--accent); color: #fff; }
+        .btn-action-accent:hover { background-color: #C08F5D; }
+
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-header">Coffee Admin</div>
+        <div class="nav-item active">📍 Quản lý Bàn & Menu</div>
+        <div class="nav-item">🛒 Đơn hàng</div>
+        <div class="nav-item">🍳 Pha chế / Bếp</div>
+        <div class="nav-item">⚙️ Thiết lập Ca</div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <!-- TOP BAR -->
+        <div class="top-bar">
+            <div>Xin chào, <strong>Thu ngân Ca Sáng</strong></div>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-outline">Thêm Bàn Mới</button>
+                <button class="btn">Đóng Ca</button>
+            </div>
+        </div>
+
+        <!-- DASHBOARD CONTENT -->
+        <div class="content">
+            <h1 class="page-title">Sơ đồ hoạt động</h1>
+
+            <div class="table-grid">
+                
+                <!-- BÀN ĐANG PHỤC VỤ (SUCCESS) -->
+                <div class="table-card active">
+                    <div class="table-header">
+                        <span>Bàn 01</span>
+                        <span class="status-badge active">Đang dùng</span>
+                    </div>
+                    <div class="order-details">
+                        <div class="order-total">165.000 đ</div>
+                        <div class="order-items">
+                            • 1x Cà phê sữa đá<br>
+                            • 2x Bạc xỉu nóng<br>
+                            • 1x Bánh sừng bò
+                        </div>
+                    </div>
+                    <div class="table-actions">
+                        <button class="btn-action-secondary">Thêm món</button>
+                        <button class="btn-action-primary">Thanh toán</button>
+                    </div>
+                </div>
+
+                <!-- BÀN CHỜ BẾP (WARNING) -->
+                <div class="table-card waiting">
+                    <div class="table-header">
+                        <span>Bàn 02</span>
+                        <span class="status-badge waiting">Chờ pha chế</span>
+                    </div>
+                    <div class="order-details">
+                        <div class="order-total">90.000 đ</div>
+                        <div class="order-items">
+                            <span style="color: var(--danger); font-weight: bold;">(Mới)</span> Khách vừa đặt qua QR lúc 10:15<br>
+                            • 2x Trà đào cam sả
+                        </div>
+                    </div>
+                    <div class="table-actions">
+                        <button class="btn-action-secondary">Chi tiết</button>
+                        <button class="btn-action-accent" style="background-color: var(--warning); color: #000;">Báo Bếp</button>
+                    </div>
+                </div>
+
+                <!-- BÀN TRỐNG (DEFAULT) -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <span>Bàn 03</span>
+                        <span class="status-badge empty">Trống</span>
+                    </div>
+                    <div class="order-details">
+                        <div class="order-items" style="color: #999; font-style: italic;">
+                            Khu vực chưa có khách ngồi
+                        </div>
+                    </div>
+                    <div class="table-actions">
+                        <button class="btn-action-accent">Tạo mã QR Menu</button>
+                    </div>
+                </div>
+
+                <!-- BÀN TRỐNG (DEFAULT) -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <span>Bàn 04 (Ban công)</span>
+                        <span class="status-badge empty">Trống</span>
+                    </div>
+                    <div class="order-details">
+                        <div class="order-items" style="color: #999; font-style: italic;">
+                            Khu vực chưa có khách ngồi
+                        </div>
+                    </div>
+                    <div class="table-actions">
+                        <button class="btn-action-accent">Tạo mã QR Menu</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
