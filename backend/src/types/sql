@@ -1,0 +1,266 @@
+USE doantotnghiepvippromax;
+-- Người dùng
+CREATE TABLE nguoidung (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tendangnhap VARCHAR(50) UNIQUE NOT NULL,
+    matkhau VARCHAR(255) NOT NULL,
+    hoten VARCHAR(100) NOT NULL,
+    vaitro ENUM('admin', 'thungan', 'phucvu', 'bep') NOT NULL,
+    trangthai ENUM('hoatdong', 'nghiviec') DEFAULT 'hoatdong',
+    ngaytao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_vaitro (vaitro),
+    INDEX idx_trangthai (trangthai)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--  Khu vực
+CREATE TABLE khuvuc (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tenkhuvuc VARCHAR(100) NOT NULL,
+    mota TEXT,
+    thutu INT DEFAULT 0,
+    INDEX idx_thutu (thutu)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bàn
+CREATE TABLE ban (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    maban VARCHAR(20) UNIQUE NOT NULL,
+    tenban VARCHAR(50) NOT NULL,
+    khuvucid INT,
+    sochongoi INT DEFAULT 4,
+    trangthai ENUM('trong', 'cokhach', 'dattruoc') DEFAULT 'trong',
+    vitrix INT DEFAULT 0,
+    vitriy INT DEFAULT 0,
+    FOREIGN KEY (khuvucid) REFERENCES khuvuc(id) ON DELETE SET NULL,
+    INDEX idx_khuvuc (khuvucid),
+    INDEX idx_trangthai (trangthai)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Nhóm món
+CREATE TABLE nhommon (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tennhom VARCHAR(100) NOT NULL,
+    mota TEXT,
+    thutu INT DEFAULT 0,
+    INDEX idx_thutu (thutu)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--  Món ăn
+CREATE TABLE monan (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    mamon VARCHAR(20) UNIQUE NOT NULL,
+    tenmon VARCHAR(200) NOT NULL,
+    nhommonid INT,
+    giaban DECIMAL(10, 2) NOT NULL,
+    tinhthue BOOLEAN DEFAULT TRUE,
+    trangthai ENUM('dangban', 'ngungban', 'hethang') DEFAULT 'dangban',
+    hinhanh VARCHAR(255),
+    mota TEXT,
+    khuvucchebien ENUM('bep', 'bar') DEFAULT 'bep',
+    FOREIGN KEY (nhommonid) REFERENCES nhommon(id) ON DELETE SET NULL,
+    INDEX idx_nhommon (nhommonid),
+    INDEX idx_trangthai (trangthai),
+    INDEX idx_khuvuc (khuvucchebien)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--  Biến thể món
+CREATE TABLE bienthe (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    monanid INT NOT NULL,
+    loai ENUM('size', 'topping', 'khac') NOT NULL,
+    tenbienthe VARCHAR(100) NOT NULL,
+    giathem DECIMAL(10, 2) DEFAULT 0,
+    FOREIGN KEY (monanid) REFERENCES monan(id) ON DELETE CASCADE,
+    INDEX idx_monan (monanid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Nguyên vật liệu
+CREATE TABLE nguyenvatlieu (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    manvl VARCHAR(20) UNIQUE NOT NULL,
+    tennvl VARCHAR(200) NOT NULL,
+    donvitinh VARCHAR(20) NOT NULL,
+    tonkho DECIMAL(10, 3) DEFAULT 0,
+    tontoithieu DECIMAL(10, 3) DEFAULT 0,
+    INDEX idx_tonkho (tonkho)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Định mức nguyên vật liệu
+CREATE TABLE dinhmucnvl (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    monanid INT NOT NULL,
+    nguyenvatlieuid INT NOT NULL,
+    soluong DECIMAL(10, 3) NOT NULL,
+    FOREIGN KEY (monanid) REFERENCES monan(id) ON DELETE CASCADE,
+    FOREIGN KEY (nguyenvatlieuid) REFERENCES nguyenvatlieu(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_mon_nvl (monanid, nguyenvatlieuid),
+    INDEX idx_monan (monanid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Ca làm việc
+CREATE TABLE calamviec (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nguoidungid INT NOT NULL,
+    thoigianbatdau TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    thoigianketthuc TIMESTAMP NULL,
+    tiendauca DECIMAL(15, 2) DEFAULT 0,
+    tiencuoica DECIMAL(15, 2) DEFAULT 0,
+    trangthai ENUM('dangmo', 'dadong') DEFAULT 'dangmo',
+    FOREIGN KEY (nguoidungid) REFERENCES nguoidung(id),
+    INDEX idx_nguoidung (nguoidungid),
+    INDEX idx_trangthai (trangthai),
+    INDEX idx_thoigian (thoigianbatdau)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Đơn hàng
+CREATE TABLE donhang (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    madon VARCHAR(20) UNIQUE NOT NULL,
+    loai ENUM('taiban', 'mangdi') NOT NULL,
+    banid INT,
+    nguoiphucvuid INT,
+    tongtien DECIMAL(15, 2) DEFAULT 0,
+    tiengiam DECIMAL(15, 2) DEFAULT 0,
+    thue DECIMAL(15, 2) DEFAULT 0,
+    tongthanhtoan DECIMAL(15, 2) DEFAULT 0,
+    trangthai ENUM('dangphucvu', 'chothanhtoan', 'dathanhtoan', 'dahuy') DEFAULT 'dangphucvu',
+    calamviecid INT,
+    ghichu TEXT,
+    thoigiantao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    thoigiancapnhat TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (banid) REFERENCES ban(id) ON DELETE SET NULL,
+    FOREIGN KEY (nguoiphucvuid) REFERENCES nguoidung(id) ON DELETE SET NULL,
+    FOREIGN KEY (calamviecid) REFERENCES calamviec(id) ON DELETE SET NULL,
+    INDEX idx_ban (banid),
+    INDEX idx_trangthai (trangthai),
+    INDEX idx_thoigian (thoigiantao)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--  Chi tiết đơn hàng
+CREATE TABLE chitietdonhang (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    donhangid INT NOT NULL,
+    monanid INT NOT NULL,
+    soluong INT NOT NULL DEFAULT 1,
+    dongia DECIMAL(10, 2) NOT NULL,
+    thanhtien DECIMAL(15, 2) NOT NULL,
+    ghichu TEXT,
+    trangthai ENUM('moi', 'danglam', 'sansang', 'daphucvu') DEFAULT 'moi',
+    thoigiantao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (donhangid) REFERENCES donhang(id) ON DELETE CASCADE,
+    FOREIGN KEY (monanid) REFERENCES monan(id),
+    INDEX idx_donhang (donhangid),
+    INDEX idx_trangthai (trangthai)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Biến thể đã chọn
+CREATE TABLE bienthedachon (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    chitietdonhangid INT NOT NULL,
+    bientheit INT NOT NULL,
+    giathem DECIMAL(10, 2) DEFAULT 0,
+    FOREIGN KEY (chitietdonhangid) REFERENCES chitietdonhang(id) ON DELETE CASCADE,
+    FOREIGN KEY (bientheit) REFERENCES bienthe(id),
+    INDEX idx_chitiet (chitietdonhangid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--  Phiếu bếp
+CREATE TABLE phieubep (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    maphieu VARCHAR(20) UNIQUE NOT NULL,
+    chitietdonhangid INT NOT NULL,
+    khuvucchebien ENUM('bep', 'bar') NOT NULL,
+    nguoinhanid INT,
+    trangthai ENUM('moi', 'danglam', 'sansang') DEFAULT 'moi',
+    thoigiantao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    thoigianbatdau TIMESTAMP NULL,
+    thoigianhoanthanh TIMESTAMP NULL,
+    FOREIGN KEY (chitietdonhangid) REFERENCES chitietdonhang(id) ON DELETE CASCADE,
+    FOREIGN KEY (nguoinhanid) REFERENCES nguoidung(id) ON DELETE SET NULL,
+    INDEX idx_khuvuc (khuvucchebien),
+    INDEX idx_trangthai (trangthai),
+    INDEX idx_thoigian (thoigiantao)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Xuất nguyên vật liệu
+CREATE TABLE xuatnvl (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nguyenvatlieuid INT NOT NULL,
+    chitietdonhangid INT NOT NULL,
+    soluong DECIMAL(10, 3) NOT NULL,
+    thoigianxuat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (nguyenvatlieuid) REFERENCES nguyenvatlieu(id),
+    FOREIGN KEY (chitietdonhangid) REFERENCES chitietdonhang(id) ON DELETE CASCADE,
+    INDEX idx_nvl (nguyenvatlieuid),
+    INDEX idx_thoigian (thoigianxuat)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Khuyến mãi
+CREATE TABLE khuyenmai (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    makm VARCHAR(20) UNIQUE NOT NULL,
+    tenkm VARCHAR(200) NOT NULL,
+    loai ENUM('giamphantra', 'giamtien', 'combo') NOT NULL,
+    giatri DECIMAL(10, 2) NOT NULL,
+    ngaybatdau DATE,
+    ngayketthuc DATE,
+    giobatdau TIME,
+    gioketthuc TIME,
+    trangthai ENUM('hoatdong', 'ngung') DEFAULT 'hoatdong',
+    INDEX idx_trangthai (trangthai),
+    INDEX idx_ngay (ngaybatdau, ngayketthuc)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Hóa đơn
+CREATE TABLE hoadon (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    mahoadon VARCHAR(20) UNIQUE NOT NULL,
+    donhangid INT NOT NULL,
+    nguoithunganid INT,
+    phuongthucthanhtoan ENUM('tienmat', 'chuyenkhoan', 'vidientu') NOT NULL,
+    tongtien DECIMAL(15, 2) NOT NULL,
+    tienkhacdua DECIMAL(15, 2) DEFAULT 0,
+    tienthua DECIMAL(15, 2) DEFAULT 0,
+    thoigianthanhtoan TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ghichu TEXT,
+    FOREIGN KEY (donhangid) REFERENCES donhang(id),
+    FOREIGN KEY (nguoithunganid) REFERENCES nguoidung(id) ON DELETE SET NULL,
+    INDEX idx_donhang (donhangid),
+    INDEX idx_thoigian (thoigianthanhtoan)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- QR-Cho khách tự order
+CREATE TABLE menuqr (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    maqr VARCHAR(50) UNIQUE NOT NULL,
+    banid INT,
+    trangthai ENUM('hoatdong', 'voihieuhoa') DEFAULT 'hoatdong',
+    ngaytao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (banid) REFERENCES ban(id) ON DELETE CASCADE,
+    INDEX idx_ban (banid),
+    INDEX idx_trangthai (trangthai)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Order từ khách (self-order)
+CREATE TABLE orderkhach (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    menuqrid INT NOT NULL,
+    donhangid INT,
+    trangthai ENUM('dangchon', 'daguibep', 'dahuy') DEFAULT 'dangchon',
+    thoigiantao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (menuqrid) REFERENCES menuqr(id) ON DELETE CASCADE,
+    FOREIGN KEY (donhangid) REFERENCES donhang(id) ON DELETE SET NULL,
+    INDEX idx_menuqr (menuqrid),
+    INDEX idx_trangthai (trangthai)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Chi tiết order khách
+CREATE TABLE chitietorderkhach (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    orderkhachid INT NOT NULL,
+    monanid INT NOT NULL,
+    soluong INT DEFAULT 1,
+    ghichu TEXT,
+    FOREIGN KEY (orderkhachid) REFERENCES orderkhach(id) ON DELETE CASCADE,
+    FOREIGN KEY (monanid) REFERENCES monan(id),
+    INDEX idx_order (orderkhachid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
