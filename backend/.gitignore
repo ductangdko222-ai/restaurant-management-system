@@ -1,6 +1,4 @@
 node_modules/
+frontend/frontend/
 dist/
 .env
-.env.local
-.env.production
-*.log
