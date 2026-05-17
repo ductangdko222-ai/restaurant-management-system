@@ -2,8 +2,8 @@ import Order from '../models/Order';
 import Table from '../models/Table';
 import KitchenTicket from '../models/KitchenTicket';
 import { TrangThaiBan, TrangThaiDonHang, TrangThaiChiTiet } from '../types';
-import { emitNewTicket, emitOrderUpdated, emitTableUpdated } from '../config/socket';
-import db from '../config/db'; // ✅ import đúng cách
+import { emitNewTicket, emitOrderUpdated, emitTableUpdated, emitNewPendingOrder, broadcastNotification } from '../config/socket';
+import db from '../config/db'; // 
 
 class OrderService {
   static async getAllOrders(filters?: any): Promise<any[]> {
@@ -44,6 +44,7 @@ class OrderService {
     diachi?: string;
     calamviecid?: number;
     ghichu?: string;
+    trangthai?: TrangThaiDonHang;
   }): Promise<any> {
     try {
       if (orderData.loai === 'taiban' && !orderData.banid) {
@@ -52,18 +53,27 @@ class OrderService {
       if (orderData.banid) {
         const existingOrder = await Order.findActiveByTableId(orderData.banid);
         if (existingOrder) {
-          throw new Error('Bàn đã có đơn hàng đang mở');
+          // Nếu đã có đơn đang mở trên bàn, không tạo đơn mới mà trả về đơn hiện tại.
+          return existingOrder;
         }
       }
+
       const madon = await Order.generateOrderCode();
+      const trangthai = orderData.trangthai || TrangThaiDonHang.DANG_PHUC_VU;
 
       const newOrder = await Order.create({
         ...orderData,
-        madon
+        madon,
+        trangthai
       });
 
       if (orderData.banid) {
         await Table.updateStatus(orderData.banid, TrangThaiBan.CO_KHACH);
+      }
+
+      // Emit socket event cho đơn chờ xác nhận
+      if (trangthai === TrangThaiDonHang.CHO_XAC_NHAN) {
+        emitNewPendingOrder(newOrder);
       }
 
       return newOrder;
@@ -227,11 +237,101 @@ class OrderService {
     }
   }
 
+  static async cancelStaleConfirmationOrders(timeoutSeconds = 180): Promise<void> {
+    try {
+      const [rows]: any = await db.query(
+        `SELECT id FROM donhang WHERE trangthai = ? AND thoigiantao <= DATE_SUB(NOW(), INTERVAL ? SECOND)`,
+        [TrangThaiDonHang.CHO_XAC_NHAN, timeoutSeconds]
+      );
+
+      if (!rows || rows.length === 0) return;
+
+      for (const row of rows) {
+        const order = await this.getOrderById(row.id);
+        await this.updateOrderStatus(row.id, TrangThaiDonHang.DA_HUY);
+        
+        // Emit notification để khách biết đơn bị huỷ
+        emitOrderUpdated({
+          ...order,
+          trangthai: TrangThaiDonHang.DA_HUY,
+          cancelReason: 'Đơn chưa được xác nhận, vui lòng gọi nhân viên'
+        });
+
+        broadcastNotification('Đơn chưa được xác nhận, vui lòng gọi nhân viên', 'warning');
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static schedulePendingGuestOrderCleanup(): void {
+    const intervalSeconds = 60;
+    setInterval(async () => {
+      try {
+        await this.cancelStaleConfirmationOrders();
+      } catch (error) {
+        console.error('Failed to cancel stale confirmation orders:', error);
+      }
+    }, intervalSeconds * 1000);
+  }
+
   // Hủy order
   static async cancelOrder(id: number): Promise<boolean> {
     try {
       await this.updateOrderStatus(id, TrangThaiDonHang.DA_HUY);
       return true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Lấy tất cả đơn chờ xác nhận
+  static async getPendingConfirmationOrders(): Promise<any[]> {
+    try {
+      return await Order.findAllPendingConfirmation();
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Xác nhận đơn hàng (chuyển từ chờ xác nhận sang đang phục vụ)
+  static async confirmOrder(id: number): Promise<any> {
+    try {
+      const order = await Order.findById(id);
+      if (!order) {
+        throw new Error('Không tìm thấy đơn hàng');
+      }
+
+      if (order.trangthai !== TrangThaiDonHang.CHO_XAC_NHAN) {
+        throw new Error('Đơn hàng không ở trạng thái chờ xác nhận');
+      }
+
+      // Chuyển sang đang phục vụ
+      const updatedOrder = await Order.update(id, { trangthai: TrangThaiDonHang.DANG_PHUC_VU });
+
+      // Nếu là đơn bàn, cập nhật trạng thái bàn
+      if (order.banid) {
+        await Table.updateStatus(order.banid, TrangThaiBan.CO_KHACH);
+        const updatedTable = await Table.findById(order.banid);
+        if (updatedTable) {
+          emitTableUpdated(updatedTable);
+        }
+      }
+
+      // Emit socket event
+      emitOrderUpdated(updatedOrder);
+
+      return updatedOrder;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Kiểm tra giới hạn số đơn chờ xác nhận
+  static async checkPendingOrdersLimit(maxPending = 50): Promise<boolean> {
+    try {
+      const count = await Order.countPendingConfirmation();
+      return count < maxPending;
     } catch (error) {
       throw error;
     }

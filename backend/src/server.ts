@@ -13,10 +13,12 @@ import tableRoutes from './routes/tables';
 import areaRoutes from './routes/areas';
 import menuRoutes from './routes/menu';
 import orderRoutes from './routes/orders';
+import publicRoutes from './routes/public';
 import kitchenRoutes from './routes/kitchen';
 import paymentRoutes from './routes/payment';
 import promotion from './routes/promotion';
 import material from './routes/material';
+import OrderService from './services/orderService';
 const app: Express = express();
 
 // Tạo HTTP server
@@ -43,6 +45,7 @@ app.use('/api/tables', tableRoutes);
 app.use('/api/areas', areaRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/public', publicRoutes);
 app.use('/api/kitchen', kitchenRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/promotions', promotion);
@@ -85,4 +88,7 @@ httpServer.listen(PORT, () => {
   console.log(`API: http://localhost:${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/`);
   console.log(`Socket.io: ws://localhost:${PORT}`);
+
+  // Start stale guest order cleanup job
+  OrderService.schedulePendingGuestOrderCleanup();
 });

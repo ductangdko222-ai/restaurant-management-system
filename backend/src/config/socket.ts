@@ -140,7 +140,7 @@ export const emitTicketUpdated = (ticket: any) => {
 export const emitOrderUpdated = (order: any) => {
   if (!io) return;
   
-  // Gửi cho phục vụ
+  // Gửi cho phục vụ cụ thể nếu có
   if (order.nguoiphucvuid) {
     io.to(`waiter-${order.nguoiphucvuid}`).emit('order:updated', {
       type: 'ORDER_UPDATED',
@@ -149,8 +149,13 @@ export const emitOrderUpdated = (order: any) => {
     });
   }
   
-  // Gửi cho admin
+  // Gửi cho admin và mọi client khác để nhân viên có thể nhận đơn chờ xác nhận
   io.to('admin').emit('order:updated', {
+    type: 'ORDER_UPDATED',
+    data: order,
+    timestamp: new Date()
+  });
+  io.emit('order:updated', {
     type: 'ORDER_UPDATED',
     data: order,
     timestamp: new Date()
@@ -187,6 +192,19 @@ export const notifyWaiter = (nguoiphucvuid: number, message: string, data?: any)
   console.log(`Notification sent to waiter ${nguoiphucvuid}: ${message}`);
 };
 
+// Emit khi có đơn mới chờ xác nhận (từ khách hàng online)
+export const emitNewPendingOrder = (order: any) => {
+  if (!io) return;
+  
+  io.emit('order:pending-confirmation', {
+    type: 'NEW_PENDING_ORDER',
+    data: order,
+    timestamp: new Date()
+  });
+  
+  console.log(`⚠️  New pending order for confirmation: ${order.madon}`);
+};
+
 // Gửi thông báo tới tất cả
 export const broadcastNotification = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
   if (!io) return;
@@ -209,6 +227,7 @@ export default {
   emitOrderUpdated,
   emitTableUpdated,
   notifyWaiter,
+  emitNewPendingOrder,
   broadcastNotification,
   getIO
 };

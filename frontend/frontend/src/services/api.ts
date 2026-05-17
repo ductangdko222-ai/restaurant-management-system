@@ -199,6 +199,31 @@ class ApiService {
     return this.api.post(`/orders/${donhangid}/items`, data);
   }
 
+  // Public API for QR menu without authentication
+  getPublicMenuByCategory() {
+    return this.api.get('/public/menu/by-category');
+  }
+
+  getPublicMenuItem(id: number) {
+    return this.api.get(`/public/menu/items/${id}`);
+  }
+
+  getPublicTableById(id: number) {
+    return this.api.get(`/public/tables/${id}`);
+  }
+
+  getPublicOrderByTable(banid: number) {
+    return this.api.get(`/public/orders/table/${banid}`);
+  }
+
+  createPublicOrder(data: any) {
+    return this.api.post('/public/orders', data);
+  }
+
+  addItemToPublicOrder(donhangid: number, data: any) {
+    return this.api.post(`/public/orders/${donhangid}/items`, data);
+  }
+
   updateOrderItem(id: number, data: any) {
     return this.api.put(`/orders/items/${id}`, data);
   }
@@ -209,6 +234,10 @@ class ApiService {
 
   sendToKitchen(donhangid: number, chitietIds?: number[]) {
     return this.api.post(`/orders/${donhangid}/send-to-kitchen`, { chitietIds });
+  }
+
+  cancelOrder(id: number) {
+    return this.api.delete(`/orders/${id}`);
   }
 
   updateOrderStatus(id: number, trangthai: string) {

@@ -39,29 +39,40 @@ const MenuPublic = () => {
   // Bàn & đơn hàng
   const [tableInfo, setTableInfo] = useState<Table | null>(null);
   const [tableStatus, setTableStatus] = useState<'trong' | 'cokhach' | 'dattruoc' | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [orderStatus, setOrderStatus] = useState<string>('pending');
+  const [activeOrder, setActiveOrder] = useState<any | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const orderStatusLabel = (status?: string) => {
+    switch (status) {
+      case 'choxacnhan':
+        return 'Chờ xác nhận';
+      case 'dangphucvu':
+        return 'Đang xử lý';
+      case 'chothanhtoan':
+        return 'Chờ thanh toán';
+      case 'dathanhtoan':
+        return 'Đã thanh toán';
+      case 'dahuy':
+        return 'Đã hủy';
+      default:
+        return 'Đang xử lý';
+    }
+  };
 
   useEffect(() => {
     fetchMenu();
     if (tableId) {
       fetchTableInfo();
-      socketClient.connectSocket();
-      const socket = socketClient.getSocket();
-      socket?.on('orderUpdated', (data) => {
-        if (data.orderId === orderId) {
-          setOrderStatus(data.status);
-        }
-      });
+      fetchActiveOrder();
     }
     return () => {
       if (tableId) socketClient.disconnectSocket();
     };
-  }, [tableId, orderId]);
+  }, [tableId]);
 
   const fetchMenu = async () => {
     try {
-      const res = await api.getMenuByCategory();
+      const res = await api.getPublicMenuByCategory();
       setMenu(res.data.data || []);
     } catch {
       toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải thực đơn' });
@@ -71,11 +82,24 @@ const MenuPublic = () => {
   const fetchTableInfo = async () => {
     if (!tableId) return;
     try {
-      const res = await api.getTableById(Number(tableId));
-      setTableInfo(res.data);
-      setTableStatus(res.data.trangthai);
+      const res = await api.getPublicTableById(Number(tableId));
+      setTableInfo(res.data.data);
+      setTableStatus(res.data.data.trangthai);
     } catch {
       toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải thông tin bàn' });
+    }
+  };
+
+  const fetchActiveOrder = async () => {
+    if (!tableId) {
+      setActiveOrder(null);
+      return;
+    }
+    try {
+      const res = await api.getPublicOrderByTable(Number(tableId));
+      setActiveOrder(res.data.data || null);
+    } catch {
+      setActiveOrder(null);
     }
   };
 
@@ -95,7 +119,7 @@ const MenuPublic = () => {
     setDetailGhiChu('');
     setShowDetail(mon);
     try {
-      const res = await api.getMenuItem(mon.id);
+      const res = await api.getPublicMenuItem(mon.id);
       setShowDetail({ ...mon, bienthe: res.data.data?.bienthe || [] });
     } catch {}
   };
@@ -129,25 +153,51 @@ const MenuPublic = () => {
   };
 
   const handleOrder = async () => {
-    if (!tableId || tableStatus !== 'cokhach' || gioHang.length === 0) return;
-    const chitiet = gioHang.map(g => ({
+    if (!tableId || gioHang.length === 0) return;
+    setIsSubmitting(true);
+    const payloads = gioHang.map(g => ({
       monanid: g.mon.id,
       soluong: g.soluong,
-      bientheid: g.bienthe.map(b => b.id),
+      dongia: Number(g.mon.giaban) + g.bienthe.reduce((a, b) => a + Number(b.giathem), 0),
       ghichu: g.ghichu,
+      bienthe: g.bienthe.map(b => b.id)
     }));
+
     try {
-      const res = await api.createOrder({
-        loai: 'taiban',
-        banid: Number(tableId),
-        chitiet,
-      });
-      setOrderId(res.data.orderId);
-      setOrderStatus('pending');
+      let order = activeOrder;
+      const createdNewOrder = !order;
+
+      if (!order) {
+        const res = await api.createPublicOrder({
+          loai: 'taiban',
+          banid: Number(tableId),
+          chitiet: payloads
+        });
+        order = res.data.data;
+      }
+
+      if (!order?.id) {
+        throw new Error('Không thể xác định đơn hàng');
+      }
+
+      if (!createdNewOrder) {
+        for (const item of payloads) {
+          await api.addItemToPublicOrder(order.id, item);
+        }
+      }
+
+      await fetchActiveOrder();
+      await fetchTableInfo();
       setGioHang([]);
-      toast.current?.show({ severity: 'success', summary: 'Đặt hàng thành công', detail: `Mã đơn: ${res.data.orderId}` });
+      toast.current?.show({
+        severity: 'success',
+        summary: createdNewOrder ? 'Tạo đơn thành công' : 'Thêm món vào đơn cũ',
+        detail: `Mã đơn: ${order.madon}`
+      });
     } catch (error: any) {
-      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: error.response?.data?.message || 'Đặt hàng thất bại' });
+      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: error.response?.data?.message || error.message || 'Đặt hàng thất bại' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -210,10 +260,15 @@ const MenuPublic = () => {
 
             {/* Giỏ hàng */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {orderId && (
-                <div style={{ fontSize: 12, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <i className="pi pi-check-circle" />
-                  Mã: {orderId}
+              {activeOrder && (
+                <div style={{ fontSize: 12, color: 'var(--color-success)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <i className="pi pi-check-circle" />
+                    Đơn: {activeOrder.madon}
+                  </span>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>
+                    {orderStatusLabel(activeOrder.trangthai)}
+                  </span>
                 </div>
               )}
               <button
@@ -405,9 +460,9 @@ const MenuPublic = () => {
                     </span>
                   </div>
                   <Button
-                    label={tableStatus === 'cokhach' ? 'ĐẶT HÀNG' : 'GỌI NHÂN VIÊN'}
-                    icon={tableStatus === 'cokhach' ? 'pi pi-check' : 'pi pi-bell'}
-                    disabled={gioHang.length === 0}
+                    label={activeOrder ? 'Thêm vào đơn cũ' : 'Tạo đơn mới'}
+                    icon={activeOrder ? 'pi pi-plus' : 'pi pi-check'}
+                    disabled={gioHang.length === 0 || isSubmitting}
                     onClick={handleOrder}
                     style={{ width: '100%', background: 'var(--color-burnt-orange)', border: 'none', color: '#f5f5f5', fontWeight: 700, padding: 12, letterSpacing: 0.5 }}
                   />

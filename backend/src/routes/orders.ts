@@ -9,6 +9,8 @@ router.use(auth);
 
 router.get('/table/:banid', OrderController.getActiveOrderByTable);
 
+router.get('/confirmation/pending', OrderController.getPendingConfirmationOrders);
+
 router.get('/', OrderController.getAllOrders);
 
 router.post(
@@ -41,6 +43,12 @@ router.post(
   '/:id/send-to-kitchen',
   authorize(VaiTro.PHUC_VU, VaiTro.ADMIN),
   OrderController.sendToKitchen
+);
+
+router.post(
+  '/:id/confirm',
+  authorize(VaiTro.PHUC_VU, VaiTro.ADMIN),
+  OrderController.confirmOrder
 );
 
 router.patch('/:id/status', OrderController.updateOrderStatus);

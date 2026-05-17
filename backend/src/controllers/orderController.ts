@@ -115,6 +115,68 @@ class OrderController {
     }
   }
 
+  // POST /api/public/orders
+  static async createPublicOrder(req: Request, res: Response): Promise<void> {
+    try {
+      const orderPayload = {
+        ...req.body,
+        nguoiphucvuid: null,
+        trangthai: TrangThaiDonHang.CHO_XAC_NHAN
+      };
+      const createdOrder = await OrderService.createOrder(orderPayload);
+
+      if (orderPayload.chitiet && Array.isArray(orderPayload.chitiet)) {
+        for (const item of orderPayload.chitiet) {
+          await OrderService.addItemToOrder({
+            donhangid: createdOrder.id,
+            monanid: item.monanid,
+            soluong: item.soluong,
+            dongia: item.dongia,
+            ghichu: item.ghichu,
+            bienthe: item.bienthe || []
+          });
+        }
+      }
+
+      const order = await OrderService.getOrderById(createdOrder.id);
+
+      res.status(201).json({
+        success: true,
+        message: 'Tạo đơn công khai thành công',
+        data: order
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Tạo đơn công khai thất bại'
+      });
+    }
+  }
+
+  // POST /api/public/orders/:id/items
+  static async addItemToPublicOrder(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const itemData = {
+        donhangid: Number(id),
+        ...req.body
+      };
+
+      const newItem = await OrderService.addItemToOrder(itemData);
+
+      res.status(201).json({
+        success: true,
+        message: 'Thêm món công khai thành công',
+        data: newItem
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Thêm món công khai thất bại'
+      });
+    }
+  }
+
   //    PUT /api/orders/items/:id
   static async updateOrderItem(req: Request, res: Response): Promise<void> {
     try {
@@ -220,6 +282,42 @@ class OrderController {
       res.status(400).json({
         success: false,
         message: error.message || 'Hủy đơn hàng thất bại'
+      });
+    }
+  }
+
+  // GET /api/orders/confirmation/pending
+  static async getPendingConfirmationOrders(req: Request, res: Response): Promise<void> {
+    try {
+      const orders = await OrderService.getPendingConfirmationOrders();
+
+      res.json({
+        success: true,
+        data: orders
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Lỗi khi lấy danh sách đơn chờ xác nhận'
+      });
+    }
+  }
+
+  // POST /api/orders/:id/confirm
+  static async confirmOrder(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const order = await OrderService.confirmOrder(Number(id));
+
+      res.json({
+        success: true,
+        message: 'Xác nhận đơn hàng thành công',
+        data: order
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Xác nhận đơn hàng thất bại'
       });
     }
   }

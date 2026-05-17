@@ -38,7 +38,7 @@ class Order {
         `SELECT d.*, b.tenban 
          FROM donhang d
          LEFT JOIN ban b ON d.banid = b.id
-         WHERE d.banid = ? AND d.trangthai IN ('dangphucvu', 'chothanhtoan')
+         WHERE d.banid = ? AND d.trangthai IN ('choxacnhan', 'dangphucvu', 'chothanhtoan')
          ORDER BY d.thoigiantao DESC
          LIMIT 1`,
         [banid]
@@ -115,6 +115,7 @@ class Order {
     nguoiphucvuid?: number | null;
     calamviecid?: number;
     ghichu?: string;
+    trangthai?: TrangThaiDonHang;
   }): Promise<any> {
     try {
       const {
@@ -123,14 +124,15 @@ class Order {
         banid,
         nguoiphucvuid = null,
         calamviecid,
-        ghichu
+        ghichu,
+        trangthai = 'dangphucvu'
       } = orderData;
 
       const [result] = await db.query<ResultSetHeader>(
         `INSERT INTO donhang 
-         (madon, loai, banid, nguoiphucvuid, calamviecid, ghichu) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [madon, loai, banid, nguoiphucvuid, calamviecid, ghichu]
+         (madon, loai, banid, nguoiphucvuid, calamviecid, ghichu, trangthai) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [madon, loai, banid, nguoiphucvuid, calamviecid, ghichu, trangthai]
       );
 
       return await this.findById(result.insertId);
@@ -385,6 +387,43 @@ class Order {
 
       const count = rows[0].count + 1;
       return `DH${date}${String(count).padStart(4, '0')}`;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Lấy tất cả đơn chờ xác nhận
+  static async findAllPendingConfirmation(): Promise<any[]> {
+    try {
+      const [rows] = await db.query<OrderRow[]>(
+        `SELECT d.*, b.tenban, nd.hoten as tenphucvu
+         FROM donhang d
+         LEFT JOIN ban b ON d.banid = b.id
+         LEFT JOIN nguoidung nd ON d.nguoiphucvuid = nd.id
+         WHERE d.trangthai = 'choxacnhan'
+         ORDER BY d.thoigiantao ASC`
+      );
+
+      // Lấy chi tiết cho từng đơn
+      for (let order of rows) {
+        const items = await this.getOrderItems(order.id);
+        (order as any).chitiet = items;
+      }
+
+      return rows;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Đếm số đơn chờ xác nhận
+  static async countPendingConfirmation(): Promise<number> {
+    try {
+      const [rows] = await db.query<RowDataPacket[]>(
+        `SELECT COUNT(*) as count FROM donhang WHERE trangthai = 'choxacnhan'`
+      );
+
+      return rows[0].count || 0;
     } catch (error) {
       throw error;
     }

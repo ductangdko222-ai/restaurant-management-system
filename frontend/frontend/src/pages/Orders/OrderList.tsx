@@ -14,6 +14,7 @@ import { DonHang, ChiTietMon } from '../../types/orders';
 const fmt = (n: number) => Number(n).toLocaleString('vi-VN');
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string; icon: string }> = {
+  choxacnhan: { color: 'var(--color-off-white)', bg: 'var(--color-info)', label: 'Chờ xác nhận', icon: '⌛' },
   dangphucvu: { color: 'var(--color-off-white)', bg: 'var(--olcor-caramel)', label: 'Đang phục vụ', icon: '🍽️' },
   chothanhtoan: { color: '#000', bg: 'var(--color-caramel)', label: 'Sẵn sàng thanh toán', icon: '✅' },
   dathanhtoan: { color: 'var(--color-off-white)', bg: 'var(--color-success)', label: 'Đã thanh toán', icon: '✓' },
@@ -50,6 +51,7 @@ const OrderList = () => {
 
   const isPhucVu = user?.vaitro === 'phucvu';
   const canPayment = user?.vaitro === 'admin' || user?.vaitro === 'thungan';
+  const canConfirmOrder = user?.vaitro === 'phucvu' || user?.vaitro === 'admin';
 
   useEffect(() => { setCurrentPage(1); }, [filterStatus, activeTab]);
   useEffect(() => { fetchOrders(); }, [filterStatus, currentPage, activeTab]);
@@ -138,6 +140,26 @@ const OrderList = () => {
     }
   };
 
+  const handleConfirmOrder = async (order: DonHang) => {
+    try {
+      await api.updateOrderStatus(order.id, 'dangphucvu');
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, trangthai: 'dangphucvu' } : o));
+      toast.current?.show({ severity: 'success', summary: 'Xác nhận đơn', detail: `Đơn ${order.madon} đã xác nhận` });
+    } catch {
+      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không thể xác nhận đơn' });
+    }
+  };
+
+  const handleCancelOrder = async (order: DonHang) => {
+    try {
+      await api.cancelOrder(order.id);
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      toast.current?.show({ severity: 'success', summary: 'Đã hủy', detail: `Đơn ${order.madon} đã hủy` });
+    } catch {
+      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không thể hủy đơn' });
+    }
+  };
+
   const goToPayment = (id: number) => { navigate(`/payment?orderId=${id}`); setDetailDialog(false); };
   const orderCanPay = (o: DonHang) => o.trangthai === 'chothanhtoan' || allItemsServed(orderDetail);
   const isAlreadyPaid = (o: DonHang) => o.trangthai === 'daphucvu' || o.trangthai === 'dathanhtoan';
@@ -181,7 +203,15 @@ const OrderList = () => {
     <div style={{ display: 'flex', gap: 6 }}>
       <Button icon="pi pi-info-circle" size="small" severity="secondary"
         tooltip="Chi tiết" onClick={() => openDetail(row)} />
-      {canPayment && activeTab === 0 && (
+      {row.trangthai === 'choxacnhan' && canConfirmOrder && (
+        <>
+          <Button icon="pi pi-check" size="small" severity="success"
+            tooltip="Xác nhận đơn" onClick={e => { e.stopPropagation(); handleConfirmOrder(row); }} />
+          <Button icon="pi pi-times" size="small" severity="danger"
+            tooltip="Hủy đơn" onClick={e => { e.stopPropagation(); handleCancelOrder(row); }} />
+        </>
+      )}
+      {canPayment && activeTab === 0 && row.trangthai !== 'choxacnhan' && (
         <Button icon="pi pi-credit-card" size="small"
           tooltip="Thanh toán" disabled={isAlreadyPaid(row)}
           style={{ background: isAlreadyPaid(row) ? undefined : 'var(--color-caramel)', border: 'none', color: '#000' }}
@@ -249,6 +279,7 @@ const OrderList = () => {
                 color: 'var(--color-off-white)', borderRadius: 4, fontSize: 13,
               }}
             >
+              <option value="choxacnhan">Chờ xác nhận</option>
               <option value="dangphucvu">Đang phục vụ</option>
               <option value="chothanhtoan">Sẵn sàng thanh toán</option>
             </select>

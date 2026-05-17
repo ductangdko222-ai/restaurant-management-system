@@ -35,6 +35,7 @@ export enum KhuVucCheBien{
 }
 
 export enum TrangThaiDonHang {
+    CHO_XAC_NHAN = 'choxacnhan',
     DANG_PHUC_VU = 'dangphucvu',
     CHO_THANH_TOAN = 'chothanhtoan',
     DA_THANH_TOAN = 'dathanhtoan',
