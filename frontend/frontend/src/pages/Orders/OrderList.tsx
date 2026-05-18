@@ -187,9 +187,20 @@ const OrderList = () => {
   const allItemsServed = (items: ChiTietMon[]) =>
     items.length > 0 && items.every(i => i.trangthai === 'daphucvu');
 
+  const parseDbDateTime = (value?: string) => {
+    if (!value) return new Date(NaN);
+    let normalized = value;
+    if (normalized.includes(' ') && !normalized.includes('T')) {
+      normalized = normalized.replace(' ', 'T');
+    }
+    const parsed = new Date(normalized);
+    if (!isNaN(parsed.getTime())) return parsed;
+    return new Date(normalized.endsWith('Z') ? normalized : `${normalized}Z`);
+  };
+
   const calculateWaitTime = (createdAt?: string) => {
     if (!createdAt) return '-';
-    const min = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
+    const min = Math.floor((Date.now() - parseDbDateTime(createdAt).getTime()) / 60000);
     return min > 0 ? `${min} phút` : 'Vừa đặt';
   };
 

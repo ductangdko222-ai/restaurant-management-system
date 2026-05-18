@@ -53,9 +53,21 @@ const KitchenScreen = () => {
     }
   };
 
+  const parseDbDateTime = (value: string) => {
+    if (!value) return new Date(NaN);
+    let normalized = value;
+    if (normalized.includes(' ') && !normalized.includes('T')) {
+      normalized = normalized.replace(' ', 'T');
+    }
+    const parsed = new Date(normalized);
+    if (!isNaN(parsed.getTime())) return parsed;
+    return new Date(normalized.endsWith('Z') ? normalized : `${normalized}Z`);
+  };
+
   const getWaitTime = (thoigiantao: string) => {
-    const diff = Math.floor((Date.now() - new Date(thoigiantao).getTime()) / 1000 / 60);
-    return diff;
+    const date = parseDbDateTime(thoigiantao);
+    const diff = Math.floor((Date.now() - date.getTime()) / 60000);
+    return Number.isFinite(diff) && diff >= 0 ? diff : 0;
   };
 
   const getTimeColor = (minutes: number) => {
