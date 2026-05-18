@@ -117,6 +117,14 @@ class ApiService {
     return this.api.delete(`/tables/${id}`);
   }
 
+  transferTable(fromTableId: number, toTableId: number) {
+    return this.api.post('/tables/transfer', { fromTableId, toTableId });
+  }
+
+  mergeTables(targetTableId: number, sourceTableIds: number[]) {
+    return this.api.post('/tables/merge', { targetTableId, sourceTableIds });
+  }
+
   // Menu
   getCategories() {
     return this.api.get('/menu/categories');

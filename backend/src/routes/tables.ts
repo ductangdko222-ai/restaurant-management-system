@@ -26,6 +26,12 @@ router.post(
   TableController.transferTable
 );
 
+router.post(
+  '/merge',
+  authorize(VaiTro.PHUC_VU, VaiTro.ADMIN),
+  TableController.mergeTables
+);
+
 // Chỉ Admin
 router.post(
   '/',

@@ -17,6 +17,15 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { Area, Table } from '../../types/tables';
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+};
 
 type Severity = 'success' | 'danger' | 'warning' | 'secondary' | 'info' | 'contrast' | null | undefined;
 
@@ -45,6 +54,19 @@ const TableList = () => {
   const [loadingArea, setLoadingArea] = useState(true);
   const [filterKV, setFilterKV] = useState<number | undefined>(undefined);
   const [filterTT, setFilterTT] = useState<string | undefined>(undefined);
+  const [selectedTables, setSelectedTables] = useState<Table[]>([]);
+
+  // Chuyển bàn
+  const [transferDialog, setTransferDialog] = useState(false);
+  const [transferSourceTable, setTransferSourceTable] = useState<Table | null>(null);
+  const [transferTargetTableId, setTransferTargetTableId] = useState<number | null>(null);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [availableTables, setAvailableTables] = useState<Table[]>([]);
+
+  // Ghép bàn
+  const [mergeDialog, setMergeDialog] = useState(false);
+  const [mergeTargetTableId, setMergeTargetTableId] = useState<number | null>(null);
+  const [mergeLoading, setMergeLoading] = useState(false);
 
   // Dialog bàn
   const [tableDialog, setTableDialog] = useState(false);
@@ -62,6 +84,7 @@ const TableList = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = () => user?.vaitro === 'admin';
+  const isMobile = useIsMobile();
 
   const [qrDialog, setQrDialog] = useState(false);
   const [qrTable, setQrTable] = useState<{ id: number; maban: string; tenban: string; maqr?: string } | null>(null);
@@ -141,6 +164,12 @@ const TableList = () => {
 
   useEffect(() => { fetchAll(); }, []);
 
+  useEffect(() => {
+    if (selectedTables.length > 0 && !selectedTables.some(t => t.id === mergeTargetTableId)) {
+      setMergeTargetTableId(selectedTables[0]?.id || null);
+    }
+  }, [selectedTables, mergeTargetTableId]);
+
   // Filter bàn
   const filteredTables = tables.filter(t => {
     const matchKV = !filterKV || t.khuvucid === filterKV;
@@ -150,6 +179,73 @@ const TableList = () => {
 
   //  BÀN 
   const openCreateTable = () => { setEditTable(null); setTableForm(emptyTableForm); setTableDialog(true); };
+
+  const openTransferDialog = async (table: Table) => {
+    setTransferSourceTable(table);
+    setTransferTargetTableId(null);
+    setTransferDialog(true);
+    try {
+      const res = await api.getTables({ trangthai: 'trong' });
+      const options = res.data.data.filter((t: Table) => t.id !== table.id);
+      setAvailableTables(options);
+    } catch (e: any) {
+      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không tải được bàn trống' });
+    }
+  };
+
+  const handleConfirmTransfer = async () => {
+    if (!transferSourceTable || !transferTargetTableId) {
+      toast.current?.show({ severity: 'warn', summary: 'Thiếu thông tin', detail: 'Vui lòng chọn bàn đích' });
+      return;
+    }
+    setTransferLoading(true);
+    try {
+      await api.transferTable(transferSourceTable.id, transferTargetTableId);
+      toast.current?.show({ severity: 'success', summary: 'Thành công', detail: `Đã chuyển bàn ${transferSourceTable.tenban} sang bàn mới` });
+      setTransferDialog(false);
+      setSelectedTables([]);
+      fetchAll();
+    } catch (e: any) {
+      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: e.response?.data?.message || 'Chuyển bàn thất bại' });
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  const openMergeDialog = () => {
+    if (selectedTables.length < 2) return;
+    setMergeTargetTableId(selectedTables[0]?.id || null);
+    setMergeDialog(true);
+  };
+
+  const handleConfirmMerge = async () => {
+    if (!mergeTargetTableId || selectedTables.length < 2) {
+      toast.current?.show({ severity: 'warn', summary: 'Thiếu thông tin', detail: 'Vui lòng chọn tối thiểu 2 bàn' });
+      return;
+    }
+
+    const sourceTableIds = selectedTables
+      .map(t => t.id)
+      .filter(id => id !== mergeTargetTableId);
+
+    if (sourceTableIds.length === 0) {
+      toast.current?.show({ severity: 'warn', summary: 'Thiếu thông tin', detail: 'Vui lòng chọn bàn nguồn để ghép' });
+      return;
+    }
+
+    setMergeLoading(true);
+    try {
+      await api.mergeTables(mergeTargetTableId, sourceTableIds);
+      toast.current?.show({ severity: 'success', summary: 'Thành công', detail: 'Ghép bàn thành công' });
+      setMergeDialog(false);
+      setSelectedTables([]);
+      fetchAll();
+    } catch (e: any) {
+      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: e.response?.data?.message || 'Ghép bàn thất bại' });
+    } finally {
+      setMergeLoading(false);
+    }
+  };
   const openEditTable = (t: Table) => {
     setEditTable(t);
     setTableForm({ maban: t.maban, tenban: t.tenban, khuvucid: t.khuvucid, sochongoi: t.sochongoi, trangthai: t.trangthai });
@@ -262,9 +358,13 @@ const TableList = () => {
   };
 
   const tableActionBody = (row: Table) => (
-    <div style={{ display: 'flex', gap: 6 }}>
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
       <Button icon="pi pi-shopping-cart" size="small" severity="warning" tooltip="Đặt món"
         onClick={() => navigate(`/pos/${row.id}`)} />
+      {row.trangthai === 'cokhach' && (
+        <Button icon="pi pi-exchange" size="small" severity="info" tooltip="Chuyển bàn"
+          onClick={() => openTransferDialog(row)} />
+      )}
       {isAdmin() && <>
         <Button icon="pi pi-pencil" size="small" severity="info" tooltip="Sửa"
           onClick={() => openEditTable(row)} />
@@ -316,7 +416,11 @@ const TableList = () => {
               />
               <Button icon="pi pi-refresh" size="small" severity="secondary" onClick={fetchAll} />
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end', width: isMobile ? '100%' : 'auto' }}>
+              <Button label="Ghép bàn" icon="pi pi-object-group" size="small" severity="secondary"
+                disabled={selectedTables.length < 2}
+                onClick={openMergeDialog}
+                style={{ minWidth: 140 }} />
               <Button label="Sơ đồ bàn" icon="pi pi-th-large" size="small" severity="secondary"
                 onClick={() => navigate('/tables/map')} />
               {isAdmin() && (
@@ -328,7 +432,9 @@ const TableList = () => {
           </div>
 
           <DataTable value={filteredTables} loading={loadingTable} stripedRows size="small"
-            emptyMessage="Không có bàn nào">
+            emptyMessage="Không có bàn nào" selection={selectedTables} onSelectionChange={e => setSelectedTables(e.value as Table[])}
+            dataKey="id" selectionMode="checkbox" responsiveLayout="scroll">
+            <Column selectionMode="multiple" headerStyle={{ width: '3rem' }} />
             <Column field="maban" header="Mã bàn" sortable style={{ width: 100 }} />
             <Column field="tenban" header="Tên bàn" sortable />
             <Column header="Khu vực"
@@ -336,7 +442,7 @@ const TableList = () => {
               sortable />
             <Column field="sochongoi" header="Sức chứa" sortable style={{ width: 100 }} />
             <Column field="trangthai" header="Trạng thái" body={statusBody} sortable style={{ width: 130 }} />
-            <Column header="Thao tác" body={tableActionBody} style={{ width: 150 }} />
+            <Column header="Thao tác" body={tableActionBody} style={{ width: 190 }} />
           </DataTable>
         </TabPanel>
 
@@ -407,6 +513,55 @@ const TableList = () => {
       </Dialog>
 
       {/*  DIALOG KHU VỰC  */}
+      {/*  DIALOG CHUYỂN BÀN  */}
+      <Dialog header={transferSourceTable ? `Chuyển bàn ${transferSourceTable.tenban}` : 'Chuyển bàn'} visible={transferDialog}
+        style={{ width: 420 }} onHide={() => setTransferDialog(false)}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--color-caramel)', letterSpacing: 1 }}>Bàn nguồn</label>
+            <InputText className="w-full mt-1" value={transferSourceTable?.tenban || ''} disabled />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--color-caramel)', letterSpacing: 1 }}>Bàn đích</label>
+            <Dropdown className="w-full mt-1" value={transferTargetTableId}
+              options={availableTables.map(t => ({ label: `${t.maban} - ${t.tenban}`, value: t.id }))}
+              onChange={e => setTransferTargetTableId(e.value as number)} placeholder="Chọn bàn đích" />
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button label="Hủy" severity="secondary" size="small" onClick={() => setTransferDialog(false)} />
+            <Button label="Chuyển" size="small" loading={transferLoading}
+              onClick={handleConfirmTransfer}
+              style={{ background: 'var(--color-burnt-orange)', border: 'none', color: '#f5f5f5' }} />
+          </div>
+        </div>
+      </Dialog>
+
+      {/*  DIALOG GHÉP BÀN  */}
+      <Dialog header="Ghép bàn" visible={mergeDialog} style={{ width: 420 }} onHide={() => setMergeDialog(false)}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--color-caramel)', letterSpacing: 1 }}>Bàn nguồn</label>
+            <div style={{ minHeight: 44, padding: 10, border: '1px solid var(--color-dark-gray)', borderRadius: 8, background: '#222' }}>
+              {selectedTables.length > 0 ? selectedTables.map(table => (
+                <div key={table.id} style={{ marginBottom: 4 }}>{table.maban} - {table.tenban}</div>
+              )) : <span>Chọn ít nhất 2 bàn để ghép</span>}
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--color-caramel)', letterSpacing: 1 }}>Bàn đích</label>
+            <Dropdown className="w-full mt-1" value={mergeTargetTableId}
+              options={selectedTables.map(t => ({ label: `${t.maban} - ${t.tenban}`, value: t.id }))}
+              onChange={e => setMergeTargetTableId(e.value as number)} placeholder="Chọn bàn đích" />
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button label="Hủy" severity="secondary" size="small" onClick={() => setMergeDialog(false)} />
+            <Button label="Ghép" size="small" loading={mergeLoading}
+              onClick={handleConfirmMerge}
+              style={{ background: 'var(--color-burnt-orange)', border: 'none', color: '#f5f5f5' }} />
+          </div>
+        </div>
+      </Dialog>
+
       <Dialog header={editArea ? 'Sửa khu vực' : 'Thêm khu vực mới'} visible={areaDialog}
         style={{ width: 400 }} onHide={() => setAreaDialog(false)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>

@@ -209,6 +209,32 @@ class TableController {
       });
     }
   }
+
+  static async mergeTables(req: Request, res: Response): Promise<void> {
+    try {
+      const { targetTableId, sourceTableIds } = req.body;
+
+      if (!targetTableId || !Array.isArray(sourceTableIds) || sourceTableIds.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'Vui lòng chọn bàn đích và bàn nguồn để ghép'
+        });
+        return;
+      }
+
+      await TableService.mergeTables(targetTableId, sourceTableIds);
+
+      res.json({
+        success: true,
+        message: 'Ghép bàn thành công'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Ghép bàn thất bại'
+      });
+    }
+  }
 }
 
 export default TableController;

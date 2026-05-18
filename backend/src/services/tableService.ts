@@ -1,5 +1,7 @@
 import Table from '../models/Table';
-import { IBan, TrangThaiBan } from '../types';
+import Order from '../models/Order';
+import db from '../config/db';
+import { IBan, TrangThaiBan, TrangThaiDonHang } from '../types';
 
 class TableService {
   // Lấy tất 
@@ -154,10 +156,79 @@ class TableService {
       if (toTable.trangthai !== TrangThaiBan.TRONG) {
         throw new Error('Bàn đích không trống');
       }
+
+      const order = await Order.findActiveByTableId(fromTableId);
+      if (order) {
+        await Order.update(order.id, { banid: toTableId });
+      }
+
       await Table.updateStatus(fromTableId, TrangThaiBan.TRONG);
       await Table.updateStatus(toTableId, TrangThaiBan.CO_KHACH);
     } catch (error) {
       throw error;
+    }
+  }
+
+  static async mergeTables(targetTableId: number, sourceTableIds: number[]): Promise<void> {
+    if (!sourceTableIds || sourceTableIds.length === 0) {
+      throw new Error('Vui lòng chọn bàn nguồn để ghép');
+    }
+
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const targetOrder = await Order.findActiveByTableId(targetTableId);
+      const sourceIds = sourceTableIds.filter(id => id !== targetTableId);
+
+      const sourceOrders = [];
+      for (const sourceTableId of sourceIds) {
+        const sourceOrder = await Order.findActiveByTableId(sourceTableId);
+        if (!sourceOrder) {
+          throw new Error(`Bàn ${sourceTableId} không có đơn để ghép`);
+        }
+        sourceOrders.push(sourceOrder);
+      }
+
+      if (!targetOrder && sourceOrders.length === 0) {
+        throw new Error('Không có đơn hàng nào để ghép');
+      }
+
+      let finalOrder = targetOrder;
+      if (!finalOrder) {
+        finalOrder = sourceOrders.shift()!;
+        await Order.update(finalOrder.id, { banid: targetTableId });
+      }
+
+      for (const sourceOrder of sourceOrders) {
+        if (sourceOrder.id === finalOrder.id) continue;
+
+        await connection.query(
+          'UPDATE chitietdonhang SET donhangid = ? WHERE donhangid = ?',
+          [finalOrder.id, sourceOrder.id]
+        );
+
+        await connection.query(
+          'UPDATE donhang SET banid = NULL, trangthai = ? WHERE id = ?',
+          [TrangThaiDonHang.DA_HUY, sourceOrder.id]
+        );
+      }
+
+      const totals = await Order.calculateTotal(finalOrder.id);
+      await Order.update(finalOrder.id, totals);
+
+      // Cập nhật trạng thái bàn
+      await Table.updateStatus(targetTableId, TrangThaiBan.CO_KHACH);
+      for (const sourceTableId of sourceIds) {
+        await Table.updateStatus(sourceTableId, TrangThaiBan.TRONG);
+      }
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
   }
 }

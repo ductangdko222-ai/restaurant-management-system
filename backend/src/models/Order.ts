@@ -148,6 +148,7 @@ class Order {
       const params: any[] = [];
 
       const fields = [
+        'banid',
         'tongtien',
         'tiengiam',
         'thue',
