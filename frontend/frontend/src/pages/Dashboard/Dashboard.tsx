@@ -253,7 +253,7 @@ const Dashboard = () => {
   );
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1100, width: '100%', margin: '0 auto' }}>
       <Toast ref={toast} />
 
       {/* Header */}

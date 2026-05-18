@@ -9,6 +9,16 @@ import { useAuth } from '../../context/AuthContext';
 import socketClient from '../../services/socketClient';
 import { Area, Table } from '../../types/tables';
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+};
+
 const statusStyle: Record<string, { bg: string; border: string; color: string; label: string }> = {
   trong:    { bg: 'rgba(34,197,94,0.1)',  border: 'var(--color-success)', color: 'var(--color-success)', label: 'Trống'     },
   cokhach:  { bg: 'rgba(239,68,68,0.1)',  border: 'var(--color-error)', color: 'var(--color-error)', label: 'Có khách'  },
@@ -29,6 +39,7 @@ const TableMap = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = () => user?.vaitro === 'admin';
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchAll();
@@ -97,12 +108,13 @@ const TableMap = () => {
       <Toast ref={toast} />
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: 12, marginBottom: 20 }}>
         <div style={{ color: 'var(--color-caramel)', fontSize: 11, letterSpacing: 3 }}>SƠ ĐỒ BÀN</div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, alignItems: isMobile ? 'stretch' : 'center', width: isMobile ? '100%' : 'auto' }}>
           <Dropdown value={filterKV} options={areaOptions} onChange={e => setFilterKV(e.value)}
-            placeholder="Khu vực" style={{ minWidth: 140 }} />
-          <Button label="Danh sách" icon="pi pi-list" size="small" severity="secondary"
+            placeholder="Khu vực" style={{ minWidth: isMobile ? '100%' : 140, width: isMobile ? '100%' : undefined }} />
+          <Button label="Danh sách" icon="pi pi-list" iconPos="left" size="small" severity="secondary"
+            style={{ width: isMobile ? '100%' : undefined }}
             onClick={() => navigate('/tables')} />
         </div>
       </div>
@@ -120,61 +132,95 @@ const TableMap = () => {
         )}
       </div>
 
-      {/* Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${COLS}, ${CELL}px)`,
-        gridTemplateRows: `repeat(${ROWS}, ${CELL}px)`,
-        gap: 4,
-        background: 'var(--color-deep-espresso)',
-        border: '1px solid var(--color-dark-gray)',
-        padding: 8,
-        overflowX: 'auto',
-      }}>
-        {Array.from({ length: ROWS }).map((_, row) =>
-          Array.from({ length: COLS }).map((_, col) => {
-            const table = posMap[`${col}-${row}`];
-            const s = table ? statusStyle[table.trangthai] : null;
+      {/* Grid or mobile list */}
+      {isMobile ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+          {filtered.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', color: 'var(--color-caramel)', textAlign: 'center', padding: 16, border: '1px solid var(--color-dark-gray)', borderRadius: 12 }}>Không có bàn trong khu vực này</div>
+          ) : filtered.map(table => {
+            const s = statusStyle[table.trangthai] || statusStyle.trong;
             return (
-              <div
-                key={`${col}-${row}`}
-                onDragOver={e => e.preventDefault()}
-                onDrop={() => handleDrop(col, row)}
+              <div key={table.id}
+                onClick={() => navigate(`/pos/${table.id}`)}
                 style={{
-                  width: CELL, height: CELL,
-                  border: '1px dashed var(--color-deep-espresso)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                {table && s && (
-                  <div
-                    draggable={isAdmin()}
-                    onDragStart={() => handleDragStart(table)}
-                    onClick={() => navigate(`/pos/${table.id}`)}
-                    style={{
-                      width: '90%', height: '90%',
-                      background: s.bg,
-                      border: `1px solid ${s.border}`,
-                      display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      transition: 'opacity 0.15s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.opacity = '0.8'}
-                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.opacity = '1'}
-                  >
-                    <div style={{ fontSize: 14, color: s.color, fontWeight: 500 }}>{table.maban}</div>
-                    <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 2 }}>{table.tenban}</div>
-                    <div style={{ fontSize: 10, color: 'var(--color-dark-gray)', marginTop: 2 }}>{table.sochongoi} người</div>
-                    <div style={{ fontSize: 10, color: s.color, marginTop: 4 }}>{s.label}</div>
+                  borderRadius: 14,
+                  border: `1px solid ${s.border}`,
+                  background: s.bg,
+                  padding: 14,
+                  cursor: 'pointer',
+                  width: '100%',
+                }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: s.color }}>{table.maban}</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-dark-gray)', marginTop: 4 }}>{table.tenban}</div>
                   </div>
-                )}
+                  <div style={{ fontSize: 11, color: s.color, padding: '4px 8px', borderRadius: 12, border: `1px solid ${s.border}` }}>{s.label}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 12, color: 'var(--color-dark-gray)', gap: 10, flexWrap: 'wrap' }}>
+                  <span>{table.sochongoi} chỗ</span>
+                  <span>{table.khuvuc?.tenkhuvuc || areas.find(a => a.id === table.khuvucid)?.tenkhuvuc || 'Chưa có khu vực'}</span>
+                </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${COLS}, ${CELL}px)`,
+          gridTemplateRows: `repeat(${ROWS}, ${CELL}px)`,
+          gap: 4,
+          background: 'var(--color-deep-espresso)',
+          border: '1px solid var(--color-dark-gray)',
+          padding: 8,
+          overflowX: 'auto',
+        }}>
+          {Array.from({ length: ROWS }).map((_, row) =>
+            Array.from({ length: COLS }).map((_, col) => {
+              const table = posMap[`${col}-${row}`];
+              const s = table ? statusStyle[table.trangthai] : null;
+              return (
+                <div
+                  key={`${col}-${row}`}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={() => handleDrop(col, row)}
+                  style={{
+                    width: CELL, height: CELL,
+                    border: '1px dashed var(--color-deep-espresso)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {table && s && (
+                    <div
+                      draggable={isAdmin()}
+                      onDragStart={() => handleDragStart(table)}
+                      onClick={() => navigate(`/pos/${table.id}`)}
+                      style={{
+                        width: '90%', height: '90%',
+                        background: s.bg,
+                        border: `1px solid ${s.border}`,
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        transition: 'opacity 0.15s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.opacity = '0.8'}
+                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.opacity = '1'}
+                    >
+                      <div style={{ fontSize: 14, color: s.color, fontWeight: 500 }}>{table.maban}</div>
+                      <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 2 }}>{table.tenban}</div>
+                      <div style={{ fontSize: 10, color: 'var(--color-dark-gray)', marginTop: 2 }}>{table.sochongoi} người</div>
+                      <div style={{ fontSize: 10, color: s.color, marginTop: 4 }}>{s.label}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {saving && (
         <div style={{ marginTop: 12, fontSize: 12, color: 'var(--color-caramel)' }}>Đang lưu vị trí...</div>

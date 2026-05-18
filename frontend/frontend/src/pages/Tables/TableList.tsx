@@ -12,6 +12,7 @@ import { Toast } from 'primereact/toast';
 import { Tag } from 'primereact/tag';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { Checkbox } from 'primereact/checkbox';
 import QRCode from 'react-qr-code';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -55,6 +56,62 @@ const TableList = () => {
   const [filterKV, setFilterKV] = useState<number | undefined>(undefined);
   const [filterTT, setFilterTT] = useState<string | undefined>(undefined);
   const [selectedTables, setSelectedTables] = useState<Table[]>([]);
+
+  const isTableSelected = (table: Table) => selectedTables.some(t => t.id === table.id);
+  const toggleTableSelection = (table: Table) => {
+    setSelectedTables(prev => {
+      if (prev.some(t => t.id === table.id)) {
+        return prev.filter(t => t.id !== table.id);
+      }
+      return [...prev, table];
+    });
+  };
+
+  const TableCard = ({ table }: { table: Table }) => {
+    const selected = isTableSelected(table);
+    return (
+      <div style={{
+        background: selected ? 'rgba(76, 175, 80, 0.05)' : 'var(--color-deep-espresso)',
+        border: selected ? '1px solid var(--color-success)' : '1px solid var(--color-dark-gray)',
+        borderRadius: 14,
+        padding: 16,
+        marginBottom: 12,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, color: 'var(--color-off-white)', fontWeight: 700, marginBottom: 4 }}>{table.maban} — {table.tenban}</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', color: 'var(--color-dark-gray)', fontSize: 12 }}>
+              <span>{table.sochongoi} chỗ</span>
+              <span>{table.khuvuc?.tenkhuvuc || areas.find(a => a.id === table.khuvucid)?.tenkhuvuc || 'Chưa có khu vực'}</span>
+              <span>{statusMap[table.trangthai]?.label}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Checkbox inputId={`table-select-${table.id}`} checked={selected} onChange={() => toggleTableSelection(table)} />
+            <label htmlFor={`table-select-${table.id}`} style={{ color: 'var(--color-off-white)', cursor: 'pointer' }}>Chọn</label>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Button icon="pi pi-shopping-cart" iconPos="left" label="Đặt món" size="small" severity="warning" className="w-full" style={{ flex: 1, minWidth: 120 }}
+            onClick={() => navigate(`/pos/${table.id}`)} />
+          {table.trangthai === 'cokhach' && (
+            <Button icon="pi pi-arrows-h" iconPos="left" label="Chuyển" size="small" severity="info" className="w-full" style={{ flex: 1, minWidth: 120, color: 'inherit' }}
+              onClick={() => openTransferDialog(table)} />
+          )}
+          {isAdmin() && (
+            <>
+              <Button icon="pi pi-pencil" iconPos="left" label="Sửa" size="small" severity="info" className="w-full" style={{ flex: 1, minWidth: 120 }}
+                onClick={() => openEditTable(table)} />
+              <Button icon="pi pi-trash" iconPos="left" label="Xóa" size="small" severity="danger" className="w-full" style={{ flex: 1, minWidth: 120 }}
+                onClick={() => handleDeleteTable(table)} />
+              <Button icon="pi pi-qrcode" iconPos="left" label="QR" size="small" severity="success" className="w-full" style={{ flex: 1, minWidth: 120 }}
+                onClick={() => openQrDialog(table)} />
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Chuyển bàn
   const [transferDialog, setTransferDialog] = useState(false);
@@ -362,7 +419,7 @@ const TableList = () => {
       <Button icon="pi pi-shopping-cart" size="small" severity="warning" tooltip="Đặt món"
         onClick={() => navigate(`/pos/${row.id}`)} />
       {row.trangthai === 'cokhach' && (
-        <Button icon="pi pi-exchange" size="small" severity="info" tooltip="Chuyển bàn"
+        <Button icon="pi pi-arrows-h" size="small" severity="info" tooltip="Chuyển bàn"
           onClick={() => openTransferDialog(row)} />
       )}
       {isAdmin() && <>
@@ -396,8 +453,8 @@ const TableList = () => {
       <TabView>
         {/*  TAB BÀN  */}
         <TabPanel header="Danh sách bàn" leftIcon="pi pi-list mr-2">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, width: isMobile ? '100%' : 'auto' }}>
               <Dropdown
                 value={filterKV}
                 options={areaOptions}
@@ -420,30 +477,41 @@ const TableList = () => {
               <Button label="Ghép bàn" icon="pi pi-object-group" size="small" severity="secondary"
                 disabled={selectedTables.length < 2}
                 onClick={openMergeDialog}
-                style={{ minWidth: 140 }} />
+                style={{ minWidth: 140, width: isMobile ? '100%' : undefined }} />
               <Button label="Sơ đồ bàn" icon="pi pi-th-large" size="small" severity="secondary"
+                style={{ width: isMobile ? '100%' : undefined }}
                 onClick={() => navigate('/tables/map')} />
               {isAdmin() && (
                 <Button label="Thêm bàn" icon="pi pi-plus" size="small"
-                  style={{ background: 'var(--color-burnt-orange)', border: 'none', color: '#f5f5f5' }}
+                  style={{ width: isMobile ? '100%' : undefined, background: 'var(--color-burnt-orange)', border: 'none', color: '#f5f5f5' }}
                   onClick={openCreateTable} />
               )}
             </div>
           </div>
 
-          <DataTable value={filteredTables} loading={loadingTable} stripedRows size="small"
-            emptyMessage="Không có bàn nào" selection={selectedTables} onSelectionChange={e => setSelectedTables(e.value as Table[])}
-            dataKey="id" selectionMode="checkbox" responsiveLayout="scroll">
-            <Column selectionMode="multiple" headerStyle={{ width: '3rem' }} />
-            <Column field="maban" header="Mã bàn" sortable style={{ width: 100 }} />
-            <Column field="tenban" header="Tên bàn" sortable />
-            <Column header="Khu vực"
-              body={r => r.khuvuc?.tenkhuvuc || areas.find(a => a.id === r.khuvucid)?.tenkhuvuc || '—'}
-              sortable />
-            <Column field="sochongoi" header="Sức chứa" sortable style={{ width: 100 }} />
-            <Column field="trangthai" header="Trạng thái" body={statusBody} sortable style={{ width: 130 }} />
-            <Column header="Thao tác" body={tableActionBody} style={{ width: 190 }} />
-          </DataTable>
+          {isMobile ? (
+            <div>
+              {filteredTables.length === 0 ? (
+                <div style={{ color: 'var(--color-caramel)', textAlign: 'center', padding: 20 }}>Không có bàn nào</div>
+              ) : filteredTables.map(table => (
+                <TableCard key={table.id} table={table} />
+              ))}
+            </div>
+          ) : (
+            <DataTable value={filteredTables} loading={loadingTable} stripedRows size="small"
+              emptyMessage="Không có bàn nào" selection={selectedTables} onSelectionChange={e => setSelectedTables(e.value as Table[])}
+              dataKey="id" selectionMode="checkbox" responsiveLayout="scroll">
+              <Column selectionMode="multiple" headerStyle={{ width: '3rem' }} />
+              <Column field="maban" header="Mã bàn" sortable style={{ width: 100 }} />
+              <Column field="tenban" header="Tên bàn" sortable />
+              <Column header="Khu vực"
+                body={r => r.khuvuc?.tenkhuvuc || areas.find(a => a.id === r.khuvucid)?.tenkhuvuc || '—'}
+                sortable />
+              <Column field="sochongoi" header="Sức chứa" sortable style={{ width: 100 }} />
+              <Column field="trangthai" header="Trạng thái" body={statusBody} sortable style={{ width: 130 }} />
+              <Column header="Thao tác" body={tableActionBody} style={{ width: 190 }} />
+            </DataTable>
+          )}
         </TabPanel>
 
         {/*  TAB KHU VỰC  */}
@@ -469,7 +537,7 @@ const TableList = () => {
 
       {/*  DIALOG BÀN  */}
       <Dialog header={editTable ? 'Sửa bàn' : 'Thêm bàn mới'} visible={tableDialog}
-        style={{ width: 420 }} onHide={() => setTableDialog(false)}>
+        style={{ width: isMobile ? '100%' : 420 }} onHide={() => setTableDialog(false)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
           <div>
             <label style={{ fontSize: 11, color: 'var(--color-caramel)', letterSpacing: 1 }}>MÃ BÀN</label>
@@ -515,7 +583,7 @@ const TableList = () => {
       {/*  DIALOG KHU VỰC  */}
       {/*  DIALOG CHUYỂN BÀN  */}
       <Dialog header={transferSourceTable ? `Chuyển bàn ${transferSourceTable.tenban}` : 'Chuyển bàn'} visible={transferDialog}
-        style={{ width: 420 }} onHide={() => setTransferDialog(false)}>
+        style={{ width: isMobile ? '100%' : 420 }} onHide={() => setTransferDialog(false)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
           <div>
             <label style={{ fontSize: 11, color: 'var(--color-caramel)', letterSpacing: 1 }}>Bàn nguồn</label>
@@ -537,7 +605,7 @@ const TableList = () => {
       </Dialog>
 
       {/*  DIALOG GHÉP BÀN  */}
-      <Dialog header="Ghép bàn" visible={mergeDialog} style={{ width: 420 }} onHide={() => setMergeDialog(false)}>
+      <Dialog header="Ghép bàn" visible={mergeDialog} style={{ width: isMobile ? '100%' : 420 }} onHide={() => setMergeDialog(false)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
           <div>
             <label style={{ fontSize: 11, color: 'var(--color-caramel)', letterSpacing: 1 }}>Bàn nguồn</label>
@@ -563,7 +631,7 @@ const TableList = () => {
       </Dialog>
 
       <Dialog header={editArea ? 'Sửa khu vực' : 'Thêm khu vực mới'} visible={areaDialog}
-        style={{ width: 400 }} onHide={() => setAreaDialog(false)}>
+        style={{ width: isMobile ? '100%' : 400 }} onHide={() => setAreaDialog(false)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
           <div>
             <label style={{ fontSize: 11, color: 'var(--color-caramel)', letterSpacing: 1 }}>TÊN KHU VỰC</label>
@@ -592,7 +660,7 @@ const TableList = () => {
       </Dialog>
       <Dialog header={qrTable ? `Menu QR - ${qrTable.tenban}` : 'Menu QR'}
         visible={qrDialog}
-        style={{ width: 420 }}
+        style={{ width: isMobile ? '100%' : 420 }}
         onHide={() => setQrDialog(false)}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
