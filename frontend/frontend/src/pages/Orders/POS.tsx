@@ -201,6 +201,15 @@ const POS = () => {
   const handleServed = async (item: ChiTiet) => {
     try {
       await api.updateOrderItem(item.id, { trangthai: 'daphucvu' });
+      try {
+        const res = await api.getKitchenTickets();
+        const tickets = res.data?.data || [];
+        const related = tickets.filter((t: any) => t.chitietdonhangid === item.id);
+        for (const t of related) {
+          try { await api.markAsServed(t.id); } catch (e) { /* ignore individual failures */ }
+        }
+      } catch (e) { /* ignore */ }
+
       fetchOrder();
       toast.current?.show({ severity: 'info', summary: 'Đã phục vụ', detail: item.tenmon, life: 2000 });
     } catch (e: any) { toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: e.response?.data?.message }); }

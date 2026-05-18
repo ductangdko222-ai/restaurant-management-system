@@ -15,7 +15,7 @@ const fmt = (n: number) => Number(n).toLocaleString('vi-VN');
 const getImageUrl = (path?: string) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  const base = process.env.REACT_APP_API_URL?.replace(/\/api\/?$/i, '') || 'http://localhost:5000';
+  const base = process.env.REACT_APP_API_URL?.replace(/\/api\/?$/i, '') || window.location.origin;
   return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`;
 };
 
@@ -501,8 +501,17 @@ const MenuPublic = () => {
             {/* Ảnh món */}
             <div style={{ overflow: 'hidden', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-deep-espresso)', minHeight: 300 }}>
               {showDetail.hinhanh ? (
-                <img src={getImageUrl(showDetail.hinhanh)} alt={showDetail.tenmon}
-                  style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 6, background: 'var(--color-deep-espresso)', display: 'block' }} />
+                <img
+                  src={getImageUrl(showDetail.hinhanh)}
+                  alt={showDetail.tenmon}
+                  loading="lazy"
+                  onError={e => {
+                    const img = e.currentTarget;
+                    img.onerror = null;
+                    img.style.display = 'none';
+                  }}
+                  style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 6, background: 'var(--color-deep-espresso)', display: 'block' }}
+                />
               ) : (
                 <div style={{ width: '100%', height: 300, background: 'var(--color-deep-espresso)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48 }}>
                   {showDetail.khuvucchebien === 'bar' ? '🥤' : '🍽️'}
@@ -616,7 +625,17 @@ const MonCard = ({ mon, onOpen }: { mon: MonAn; onOpen: () => void }) => (
     {/* Ảnh */}
     <div style={{ height: 140, background: 'var(--color-deep-espresso)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
       {mon.hinhanh ? (
-        <img src={getImageUrl(mon.hinhanh)} alt={mon.tenmon} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img
+          src={getImageUrl(mon.hinhanh)}
+          alt={mon.tenmon}
+          loading="lazy"
+          onError={e => {
+            const img = e.currentTarget;
+            img.onerror = null;
+            img.style.display = 'none';
+          }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
       ) : (
         <span style={{ fontSize: 44 }}>{mon.khuvucchebien === 'bar' ? '🥤' : '🍽️'}</span>
       )}

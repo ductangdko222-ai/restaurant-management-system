@@ -62,10 +62,22 @@ class KitchenService {
     try {
       const ticket = await KitchenTicket.findById(id);
       if (!ticket) throw new Error('Không tìm thấy phiếu bếp');
+      // Cập nhật trạng thái chi tiết đơn -> đã phục vụ
       await db.query(
         'UPDATE chitietdonhang SET trangthai = ? WHERE id = ?',
         ['daphucvu', ticket.chitietdonhangid]
       );
+
+      // Cập nhật phiếu bếp để bếp không còn hiển thị (đánh dấu là đã phục vụ)
+      await db.query(
+        `UPDATE phieubep SET trangthai = ? WHERE id = ?`,
+        ['daphucvu', id]
+      );
+
+      // Lấy lại phiếu bếp đã cập nhật và emit sự kiện realtime
+      const updatedTicket = await KitchenTicket.findById(id);
+      if (updatedTicket) emitTicketUpdated(updatedTicket);
+
       return true;
     } catch (error) { throw error; }
   }
