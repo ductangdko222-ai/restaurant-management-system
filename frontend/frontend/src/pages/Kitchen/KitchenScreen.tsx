@@ -55,13 +55,24 @@ const KitchenScreen = () => {
 
   const parseDbDateTime = (value: string) => {
     if (!value) return new Date(NaN);
-    let normalized = value;
-    if (normalized.includes(' ') && !normalized.includes('T')) {
-      normalized = normalized.replace(' ', 'T');
+
+    // Parse SQL datetime string as local time to avoid timezone offset issues
+    const match = value.match(/^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?\s*$/);
+    if (match) {
+      const [, year, month, day, hour, minute, second] = match;
+      return new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second) || 0
+      );
     }
-    const parsed = new Date(normalized);
+
+    const parsed = new Date(value);
     if (!isNaN(parsed.getTime())) return parsed;
-    return new Date(normalized.endsWith('Z') ? normalized : `${normalized}Z`);
+    return new Date(value.endsWith('Z') ? value : `${value}Z`);
   };
 
   const getWaitTime = (thoigiantao: string) => {
