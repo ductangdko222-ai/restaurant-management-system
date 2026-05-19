@@ -7,7 +7,7 @@ class OrderController {
   //GET /api/orders
   static async getAllOrders(req: Request, res: Response): Promise<void> {
     try {
-      const { trangthai, banid, calamviecid, tungay, denngay } = req.query;
+      const { trangthai, banid, calamviecid, tungay, denngay, page, limit } = req.query;
 
       const filters: any = {};
       
@@ -16,12 +16,17 @@ class OrderController {
       if (calamviecid) filters.calamviecid = Number(calamviecid);
       if (tungay) filters.tungay = tungay as string;
       if (denngay) filters.denngay = denngay as string;
+      
+      const pageNum = Number(page) || 1;
+      const limitNum = Number(limit) || 10;
 
-      const orders = await OrderService.getAllOrders(filters);
+      const result = await OrderService.getAllOrders(filters, pageNum, limitNum);
 
       res.json({
         success: true,
-        data: orders
+        data: result.data,
+        totalPages: result.totalPages,
+        currentPage: pageNum
       });
     } catch (error: any) {
       res.status(500).json({

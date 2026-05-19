@@ -6,9 +6,19 @@ import { emitNewTicket, emitOrderUpdated, emitTableUpdated, emitNewPendingOrder,
 import db from '../config/db'; // 
 
 class OrderService {
-  static async getAllOrders(filters?: any): Promise<any[]> {
+  static async getAllOrders(filters?: any, page: number = 1, limit: number = 10): Promise<any> {
     try {
-      return await Order.findAll(filters);
+      const orders = await Order.findAll(filters);
+      const total = orders.length;
+      const totalPages = Math.ceil(total / limit);
+      const start = (page - 1) * limit;
+      const paginatedOrders = orders.slice(start, start + limit);
+      
+      return {
+        data: paginatedOrders,
+        totalPages,
+        total
+      };
     } catch (error) {
       throw error;
     }
