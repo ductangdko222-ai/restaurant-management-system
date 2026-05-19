@@ -22,6 +22,19 @@ const pool = mysql.createPool({
 
 const promisePool = pool.promise();
 
+// Wrapper để bắt buộc SET time_zone trước mỗi query (cho Render/cloud)
+const originalQuery = promisePool.query.bind(promisePool);
+(promisePool as any).query = async function(sql: any, values?: any) {
+    try {
+        // Đặt timezone trước query
+        await originalQuery("SET time_zone = '+07:00'");
+        return await originalQuery(sql, values);
+    } catch (error) {
+        console.error('Lỗi query:', error);
+        throw error;
+    }
+};
+
 pool.getConnection((err, connection) => {
     if (err) {
         console.error('Lỗi kết nối db', err.message);

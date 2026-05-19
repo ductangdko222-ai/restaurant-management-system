@@ -15,7 +15,7 @@ const fmt = (n: number) => Number(n).toLocaleString('vi-VN');
 const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string; icon: string }> = {
   choxacnhan:   { color: 'var(--color-off-white)', bg: 'var(--color-info)',    label: 'Chờ xác nhận',        icon: '⌛' },
   dangphucvu:   { color: 'var(--color-off-white)', bg: 'var(--color-caramel)', label: 'Đang phục vụ',         icon: '🍽️' }, // FIX: --olcor-caramel → --color-caramel
-  chothanhtoan: { color: '#000',                   bg: 'var(--color-caramel)', label: 'Sẵn sàng thanh toán', icon: '✅' },
+  chothanhtoan: { color: '#000',bg: 'var(--color-caramel)', label: 'Sẵn sàng thanh toán', icon: '✅' },
   dathanhtoan:  { color: 'var(--color-off-white)', bg: 'var(--color-success)', label: 'Đã thanh toán',        icon: '✓' },
   daphucvu:     { color: 'var(--color-off-white)', bg: 'var(--color-success)', label: 'Đã thanh toán',        icon: '✓' },
 };
@@ -187,9 +187,31 @@ const OrderList = () => {
   const allItemsServed = (items: ChiTietMon[]) =>
     items.length > 0 && items.every(i => i.trangthai === 'daphucvu');
 
+  const parseSqlDateTime = (value?: string): Date | null => {
+    if (!value) return null;
+
+    const match = value.match(/^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?\s*$/);
+    if (match) {
+      const [, year, month, day, hour, minute, second] = match;
+      return new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second) || 0
+      );
+    }
+
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
+
   const calculateWaitTime = (createdAt?: string) => {
     if (!createdAt) return '-';
-    const min = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
+    const date = parseSqlDateTime(createdAt);
+    if (!date) return '-';
+    const min = Math.floor((Date.now() - date.getTime()) / 60000);
     return min > 0 ? `${min} phút` : 'Vừa đặt';
   };
 
