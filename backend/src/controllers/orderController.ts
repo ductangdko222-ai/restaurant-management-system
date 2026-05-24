@@ -171,13 +171,13 @@ class OrderController {
 
       res.status(201).json({
         success: true,
-        message: 'Thêm món công khai thành công',
+        message: 'Thêm món thành công',
         data: newItem
       });
     } catch (error: any) {
       res.status(400).json({
         success: false,
-        message: error.message || 'Thêm món công khai thất bại'
+        message: error.message || 'Thêm món thất bại'
       });
     }
   }

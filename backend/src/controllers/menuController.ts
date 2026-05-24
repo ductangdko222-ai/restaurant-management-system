@@ -135,7 +135,7 @@ class MenuController {
 
       // Xử lý file upload
       if (req.file) {
-        itemData.hinhanh = `/uploads/images/${req.file.filename}`;
+        itemData.hinhanh = (req.file as any).path || (req.file as any).secure_url;
       }
 
       const newItem = await MenuService.createMenuItem(itemData);
@@ -161,7 +161,7 @@ class MenuController {
 
       // Xử lý file upload
       if (req.file) {
-        itemData.hinhanh = `/uploads/images/${req.file.filename}`;
+        itemData.hinhanh = (req.file as any).path || (req.file as any).secure_url;
       }
       
       const updatedItem = await MenuService.updateMenuItem(Number(id), itemData);

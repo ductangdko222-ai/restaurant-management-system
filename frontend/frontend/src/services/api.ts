@@ -207,7 +207,7 @@ class ApiService {
     return this.api.post(`/orders/${donhangid}/items`, data);
   }
 
-  // Public API for QR menu without authentication
+  // Public API (cho khách hàng)
   getPublicMenuByCategory() {
     return this.api.get('/public/menu/by-category');
   }

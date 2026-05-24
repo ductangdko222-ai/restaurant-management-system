@@ -1,17 +1,6 @@
 import multer from 'multer';
-import path from 'path';
-
-// Cấu hình lưu trữ file
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/images/');
-  },
-  filename: (req, file, cb) => {
-    // tên file duy nhất timestamp
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import cloudinary from './cloudinary';
 
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   if (file.mimetype.startsWith('image/')) {
@@ -20,6 +9,19 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
     cb(new Error('Chỉ cho phép upload file hình ảnh'));
   }
 };
+
+// Cấu hình Cloudinary Storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'adatn/menu-items',
+    format: async () => 'jpg',
+    public_id: () => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      return uniqueSuffix;
+    }
+  } as any
+});
 
 // Cấu hình multer
 const upload = multer({

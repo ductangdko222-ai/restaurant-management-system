@@ -63,7 +63,6 @@ class OrderService {
       if (orderData.banid) {
         const existingOrder = await Order.findActiveByTableId(orderData.banid);
         if (existingOrder) {
-          // Nếu đã có đơn đang mở trên bàn, không tạo đơn mới mà trả về đơn hiện tại.
           return existingOrder;
         }
       }

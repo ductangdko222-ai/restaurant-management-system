@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import MainLayout from './components/Layout/MainLayout';
-import ShiftGuard from './components/ShiftGuard'; // Import ShiftGuard
+import ShiftGuard from './components/ShiftGuard'; 
 import Login from './pages/Auth/Login';
 import ShiftManager from './pages/Shift/Shift';
 // Lazy loading các trang
@@ -61,7 +61,7 @@ const App = () => (
                 
               </Route>
 
-              {/* Phân quyền Bếp & Bar */}
+              {/* Phân quyền Bếp*/}
               <Route element={<PrivateRoute allowedRoles={['bep', 'bar', 'admin']} />}>
               <Route path="/kitchen" element={<KitchenScreen />} />
               </Route>

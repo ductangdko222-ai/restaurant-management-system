@@ -41,6 +41,7 @@ const MenuPublic = () => {
   const [tableStatus, setTableStatus] = useState<'trong' | 'cokhach' | 'dattruoc' | null>(null);
   const [activeOrder, setActiveOrder] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCart, setShowCart] = useState(false);
 
   const orderStatusLabel = (status?: string) => {
     switch (status) {
@@ -211,8 +212,14 @@ const MenuPublic = () => {
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400, color: 'var(--color-caramel)' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>☕</div>
-        Đang tải thực đơn...
+        <div className="inline-flex align-items-center justify-content-center mb-3"
+          style={{ width: 56, height: 56, border: '1px solid var(--color-caramel)', transform: 'rotate(45deg)', margin: '0 auto 12px' }}>
+          <i className="pi pi-home" style={{ color: 'var(--color-caramel)', fontSize: '1.5rem', transform: 'rotate(-45deg)' }} />
+        </div>
+        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: 'var(--color-off-white)', letterSpacing: 3, marginBottom: 8 }}>
+          DCOFFE
+        </div>
+        <div style={{ color: 'var(--color-text-secondary)' }}>Đang tải thực đơn...</div>
       </div>
     </div>
   );
@@ -232,12 +239,15 @@ const MenuPublic = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, background: 'var(--color-caramel)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 20 }}>☕</span>
+              <div className="inline-flex align-items-center justify-content-center"
+                style={{ width: 56, height: 56, border: '1px solid var(--color-caramel)', transform: 'rotate(45deg)', marginRight: 12 }}>
+                <i className="pi pi-home" style={{ color: 'var(--color-caramel)', fontSize: '1.25rem', transform: 'rotate(-45deg)' }} />
               </div>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-off-white)', letterSpacing: 1, lineHeight: 1 }}>DCOFFE</div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', letterSpacing: 2, textTransform: 'uppercase' }}>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: 'var(--color-off-white)', letterSpacing: 4, margin: 0, fontWeight: 400 }}>
+                  DCOFFE
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', letterSpacing: 5, textTransform: 'uppercase' }}>
                   {tableInfo ? `Bàn ${tableInfo.tenban}` : 'Thực đơn'}
                 </div>
               </div>
@@ -272,6 +282,8 @@ const MenuPublic = () => {
                 </div>
               )}
               <button
+                type="button"
+                onClick={() => setShowCart(prev => !prev)}
                 style={{
                   position: 'relative', background: 'var(--color-caramel)', border: 'none',
                   borderRadius: 6, padding: '10px 16px', cursor: 'pointer',
@@ -279,7 +291,7 @@ const MenuPublic = () => {
                   fontSize: 14, fontWeight: 600,
                 }}>
                 <i className="pi pi-shopping-cart" />
-                Giỏ ({tongMon})
+                {showCart ? 'Đóng giỏ' : `Giỏ (${tongMon})`}
                 {tongMon > 0 && (
                   <span style={{
                     position: 'absolute', top: -6, right: -6,
@@ -352,137 +364,143 @@ const MenuPublic = () => {
         </div>
 
         {/*  SIDEBAR GIỎ HÀNG  */}
-        <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          
-          {/* Thông tin bàn */}
-          {tableInfo && (
-            <div style={{ background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', padding: 16 }}>
-              <div style={{ color: 'var(--color-caramel)', fontSize: 11, letterSpacing: 2, marginBottom: 12 }}>THÔNG TIN BÀN</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Bàn:</span>
-                <span style={{ fontSize: 12, color: 'var(--color-off-white)' }}>{tableInfo.tenban}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Trạng thái:</span>
-                <Tag 
-                  value={tableStatus === 'cokhach' ? 'Có khách' : tableStatus === 'trong' ? 'Trống' : 'Đặt trước'}
-                  severity={tableStatus === 'cokhach' ? 'danger' : tableStatus === 'trong' ? 'success' : 'info'}
-                />
-              </div>
+        {showCart && (
+          <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <div style={{ color: 'var(--color-caramel)', fontSize: 11, letterSpacing: 2 }}>GIỎ HÀNG</div>
+              <button type="button" onClick={() => setShowCart(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 14, padding: 0 }}>
+                Đóng
+              </button>
             </div>
-          )}
 
-          {/* Giỏ hàng */}
-          <div style={{ background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ color: 'var(--color-caramel)', fontSize: 11, letterSpacing: 2, marginBottom: 12 }}>GIỎ HÀNG ({tongMon})</div>
-            
-            {gioHang.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>
-                <div>
-                  <i className="pi pi-shopping-cart" style={{ fontSize: 32, marginBottom: 12, display: 'block' }} />
-                  <div style={{ fontSize: 13 }}>Giỏ hàng trống</div>
+            {tableInfo && (
+              <div style={{ background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', padding: 16, marginBottom: 12 }}>
+                <div style={{ color: 'var(--color-caramel)', fontSize: 11, letterSpacing: 2, marginBottom: 12 }}>THÔNG TIN BÀN</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Bàn:</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-off-white)' }}>{tableInfo.tenban}</span>
                 </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ flex: 1, overflowY: 'auto', marginBottom: 12, paddingRight: 8 }}>
-                  {gioHang.map((g, i) => {
-                    const donGia = Number(g.mon.giaban) + g.bienthe.reduce((s, b) => s + Number(b.giathem), 0);
-                    return (
-                      <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid var(--color-deep-espresso)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, color: 'var(--color-off-white)', fontWeight: 600 }}>{g.mon.tenmon}</div>
-                            {g.bienthe.length > 0 && (
-                              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                                {g.bienthe.map(b => b.tenbienthe).join(', ')}
-                              </div>
-                            )}
-                          </div>
-                          <button onClick={() => updateQty(i, -1)}
-                            style={{
-                              background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', color: 'var(--color-caramel)',
-                              width: 24, height: 24, borderRadius: 4, cursor: 'pointer', fontSize: 12, display: 'flex',
-                              alignItems: 'center', justifyContent: 'center',
-                            }}>
-                            ×
-                          </button>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-                            {fmt(donGia)}đ
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <button onClick={() => updateQty(i, -1)}
-                              style={{
-                                background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', color: 'var(--color-text-secondary)',
-                                width: 24, height: 24, borderRadius: 3, cursor: 'pointer', fontSize: 12, display: 'flex',
-                                alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-caramel)'; }}
-                              onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-secondary)'; }}>
-                              −
-                            </button>
-                            <span style={{ fontSize: 12, color: 'var(--color-off-white)', fontWeight: 600, minWidth: 20, textAlign: 'center' }}>
-                              {g.soluong}
-                            </span>
-                            <button onClick={() => updateQty(i, 1)}
-                              style={{
-                                background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', color: 'var(--color-text-secondary)',
-                                width: 24, height: 24, borderRadius: 3, cursor: 'pointer', fontSize: 12, display: 'flex',
-                                alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-caramel)'; }}
-                              onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-secondary)'; }}>
-                              +
-                            </button>
-                            <span style={{ fontSize: 12, color: 'var(--color-success)', fontWeight: 600, textAlign: 'right', minWidth: 50 }}>
-                              {fmt(donGia * g.soluong)}đ
-                            </span>
-                          </div>
-                        </div>
-                        {g.ghichu && (
-                          <div style={{ fontSize: 11, color: 'var(--color-dark-gray)', fontStyle: 'italic', marginTop: 4 }}>
-                            "{g.ghichu}"
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Tổng tiền */}
-                <div style={{ borderTop: '1px solid var(--color-dark-gray)', paddingTop: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Tổng cộng:</span>
-                    <span style={{ fontSize: 16, color: 'var(--color-caramel)', fontWeight: 700 }}>
-                      {fmt(tongTien)}đ
-                    </span>
-                  </div>
-                  <Button
-                    label={activeOrder ? 'Thêm vào đơn cũ' : 'Tạo đơn mới'}
-                    icon={activeOrder ? 'pi pi-plus' : 'pi pi-check'}
-                    disabled={gioHang.length === 0 || isSubmitting}
-                    onClick={handleOrder}
-                    style={{ width: '100%', background: 'var(--color-burnt-orange)', border: 'none', color: '#f5f5f5', fontWeight: 700, padding: 12, letterSpacing: 0.5 }}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Trạng thái:</span>
+                  <Tag
+                    value={tableStatus === 'cokhach' ? 'Có khách' : tableStatus === 'trong' ? 'Trống' : 'Đặt trước'}
+                    severity={tableStatus === 'cokhach' ? 'danger' : tableStatus === 'trong' ? 'success' : 'info'}
                   />
                 </div>
-              </>
+              </div>
+            )}
+
+            <div style={{ background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ color: 'var(--color-caramel)', fontSize: 11, letterSpacing: 2, marginBottom: 12 }}>GIỎ HÀNG ({tongMon})</div>
+
+              {gioHang.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>
+                  <div>
+                    <i className="pi pi-shopping-cart" style={{ fontSize: 32, marginBottom: 12, display: 'block' }} />
+                    <div style={{ fontSize: 13 }}>Giỏ hàng trống</div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ flex: 1, overflowY: 'auto', marginBottom: 12, paddingRight: 8 }}>
+                    {gioHang.map((g, i) => {
+                      const donGia = Number(g.mon.giaban) + g.bienthe.reduce((s, b) => s + Number(b.giathem), 0);
+                      return (
+                        <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid var(--color-deep-espresso)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, color: 'var(--color-off-white)', fontWeight: 600 }}>{g.mon.tenmon}</div>
+                              {g.bienthe.length > 0 && (
+                                <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                                  {g.bienthe.map(b => b.tenbienthe).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                            <button onClick={() => updateQty(i, -1)}
+                              style={{
+                                background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', color: 'var(--color-caramel)',
+                                width: 24, height: 24, borderRadius: 4, cursor: 'pointer', fontSize: 12, display: 'flex',
+                                alignItems: 'center', justifyContent: 'center',
+                              }}>
+                              ×
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                              {fmt(donGia)}đ
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <button onClick={() => updateQty(i, -1)}
+                                style={{
+                                  background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', color: 'var(--color-text-secondary)',
+                                  width: 24, height: 24, borderRadius: 3, cursor: 'pointer', fontSize: 12, display: 'flex',
+                                  alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-caramel)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-secondary)'; }}>
+                                −
+                              </button>
+                              <span style={{ fontSize: 12, color: 'var(--color-off-white)', fontWeight: 600, minWidth: 20, textAlign: 'center' }}>
+                                {g.soluong}
+                              </span>
+                              <button onClick={() => updateQty(i, 1)}
+                                style={{
+                                  background: 'var(--color-deep-espresso)', border: '1px solid var(--color-dark-gray)', color: 'var(--color-text-secondary)',
+                                  width: 24, height: 24, borderRadius: 3, cursor: 'pointer', fontSize: 12, display: 'flex',
+                                  alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-caramel)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-text-secondary)'; }}>
+                                +
+                              </button>
+                              <span style={{ fontSize: 12, color: 'var(--color-success)', fontWeight: 600, textAlign: 'right', minWidth: 50 }}>
+                                {fmt(donGia * g.soluong)}đ
+                              </span>
+                            </div>
+                          </div>
+                          {g.ghichu && (
+                            <div style={{ fontSize: 11, color: 'var(--color-dark-gray)', fontStyle: 'italic', marginTop: 4 }}>
+                              "{g.ghichu}"
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Tổng tiền */}
+                  <div style={{ borderTop: '1px solid var(--color-dark-gray)', paddingTop: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Tổng cộng:</span>
+                      <span style={{ fontSize: 16, color: 'var(--color-caramel)', fontWeight: 700 }}>
+                        {fmt(tongTien)}đ
+                      </span>
+                    </div>
+                    <Button
+                      label={activeOrder ? 'Thêm vào đơn cũ' : 'Tạo đơn mới'}
+                      icon={activeOrder ? 'pi pi-plus' : 'pi pi-check'}
+                      disabled={gioHang.length === 0 || isSubmitting}
+                      onClick={handleOrder}
+                      style={{ width: '100%', background: 'var(--color-burnt-orange)', border: 'none', color: '#f5f5f5', fontWeight: 700, padding: 12, letterSpacing: 0.5 }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {gioHang.length > 0 && (
+              <Button
+                label="Xóa giỏ hàng"
+                icon="pi pi-trash"
+                severity="danger"
+                text
+                onClick={() => setGioHang([])}
+                style={{ fontSize: 12 }}
+              />
             )}
           </div>
-
-          {/* Xóa giỏ */}
-          {gioHang.length > 0 && (
-            <Button
-              label="Xóa giỏ hàng"
-              icon="pi pi-trash"
-              severity="danger"
-              text
-              onClick={() => setGioHang([])}
-              style={{ fontSize: 12 }}
-            />
-          )}
-        </div>
+        )}
       </main>
 
       {/*  DIALOG CHI TIẾT MÓN  */}
