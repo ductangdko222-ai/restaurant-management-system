@@ -138,6 +138,21 @@ class MenuController {
         itemData.hinhanh = (req.file as any).secure_url || (req.file as any).path;
       }
 
+      // Normalize incoming types
+      if (itemData.nhommonid !== undefined) {
+        itemData.nhommonid = itemData.nhommonid === '' ? undefined : Number(itemData.nhommonid);
+      }
+      if (itemData.giaban !== undefined) {
+        itemData.giaban = itemData.giaban === '' ? undefined : Number(itemData.giaban);
+      }
+      if (itemData.tinhthue !== undefined && typeof itemData.tinhthue === 'string') {
+        itemData.tinhthue = itemData.tinhthue === 'true' || itemData.tinhthue === '1';
+      }
+      // Ignore empty hinhanh object from multipart parsing when no file selected
+      if (itemData.hinhanh && typeof itemData.hinhanh === 'object' && Object.keys(itemData.hinhanh).length === 0) {
+        delete itemData.hinhanh;
+      }
+
       const newItem = await MenuService.createMenuItem(itemData);
 
       res.status(201).json({
@@ -162,6 +177,19 @@ class MenuController {
       // Xử lý file upload
       if (req.file) {
         itemData.hinhanh = (req.file as any).secure_url || (req.file as any).path;
+      }
+      // Normalize incoming types
+      if (itemData.nhommonid !== undefined) {
+        itemData.nhommonid = itemData.nhommonid === '' ? undefined : Number(itemData.nhommonid);
+      }
+      if (itemData.giaban !== undefined) {
+        itemData.giaban = itemData.giaban === '' ? undefined : Number(itemData.giaban);
+      }
+      if (itemData.tinhthue !== undefined && typeof itemData.tinhthue === 'string') {
+        itemData.tinhthue = itemData.tinhthue === 'true' || itemData.tinhthue === '1';
+      }
+      if (itemData.hinhanh && typeof itemData.hinhanh === 'object' && Object.keys(itemData.hinhanh).length === 0) {
+        delete itemData.hinhanh;
       }
       
       const updatedItem = await MenuService.updateMenuItem(Number(id), itemData);

@@ -7,9 +7,9 @@ export interface IMonAn{
     nhommonid?:number;
     tennhom?:string;
     giaban:number;
-    tinthue:boolean;
+  tinhthue:boolean;
     trangthai:TrangThaiMon;
-    hinanh?:string;
+    hinhanh?:string;
     mota?:string;
     khuvucchebien:KhuVucCheBien;
 }
