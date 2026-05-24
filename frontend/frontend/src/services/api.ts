@@ -151,19 +151,11 @@ class ApiService {
   }
 
   createMenuItem(data: any) {
-    return this.api.post('/menu/items', data, {
-      headers: {
-        'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json'
-      }
-    });
+    return this.api.post('/menu/items', data);
   }
 
   updateMenuItem(id: number, data: any) {
-    return this.api.put(`/menu/items/${id}`, data, {
-      headers: {
-        'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json'
-      }
-    });
+    return this.api.put(`/menu/items/${id}`, data);
   }
 
   deleteMenuItem(id: number) {
