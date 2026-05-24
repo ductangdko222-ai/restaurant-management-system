@@ -28,7 +28,7 @@ const originalQuery = promisePool.query.bind(promisePool);
         await originalQuery("SET time_zone = '+07:00'");
         return await originalQuery(sql, values);
     } catch (error) {
-        console.error('Lỗi query:', error);
+        console.error('Lỗi query:', error, { sql, values });
         throw error;
     }
 };

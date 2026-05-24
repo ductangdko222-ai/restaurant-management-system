@@ -117,26 +117,27 @@ class MenuItem {
   // Cập nhật món ăn
   static async update(id: number, itemData: Partial<IMonAn>): Promise<IMonAn | null> {
     try {
+      const fields: Array<keyof IMonAn> = ['tenmon', 'nhommonid', 'giaban', 'tinhthue', 'trangthai', 'hinhanh', 'mota', 'khuvucchebien'];
       const updates: string[] = [];
       const params: any[] = [];
 
-      const fields = ['tenmon', 'nhommonid', 'giaban', 'tinhthue', 'trangthai', 'hinhanh', 'mota', 'khuvucchebien'];
-
       fields.forEach(field => {
-        if (itemData[field as keyof IMonAn] !== undefined) {
+        const value = itemData[field];
+        if (value !== undefined) {
           updates.push(`${field} = ?`);
-          params.push(itemData[field as keyof IMonAn]);
+          params.push(value);
         }
       });
 
-      if (updates.length === 0) {
+      const setClause = updates.filter(Boolean).join(', ');
+      if (!setClause) {
         return await this.findById(id);
       }
 
       params.push(id);
 
       await db.query(
-        `UPDATE monan SET ${updates.join(', ')} WHERE id = ?`,
+        `UPDATE monan SET ${setClause} WHERE id = ?`,
         params
       );
 
