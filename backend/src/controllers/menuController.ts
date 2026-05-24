@@ -153,6 +153,10 @@ class MenuController {
         delete itemData.hinhanh;
       }
 
+      // Debug: log upload info
+      console.log('createMenuItem - req.file:', req.file);
+      console.log('createMenuItem - final hinhanh to save:', itemData.hinhanh);
+
       const newItem = await MenuService.createMenuItem(itemData);
 
       res.status(201).json({
@@ -191,6 +195,9 @@ class MenuController {
       if (itemData.hinhanh && typeof itemData.hinhanh === 'object' && Object.keys(itemData.hinhanh).length === 0) {
         delete itemData.hinhanh;
       }
+      // Debug: log upload info
+      console.log('updateMenuItem - req.file:', req.file);
+      console.log('updateMenuItem - final hinhanh to save:', itemData.hinhanh);
       
       const updatedItem = await MenuService.updateMenuItem(Number(id), itemData);
 
