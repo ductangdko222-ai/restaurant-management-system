@@ -148,8 +148,8 @@ class MenuController {
       if (itemData.tinhthue !== undefined && typeof itemData.tinhthue === 'string') {
         itemData.tinhthue = itemData.tinhthue === 'true' || itemData.tinhthue === '1';
       }
-      // Ignore empty hinhanh object from multipart parsing when no file selected
-      if (itemData.hinhanh && typeof itemData.hinhanh === 'object' && Object.keys(itemData.hinhanh).length === 0) {
+      // Ignore empty hinhanh values when no file was selected
+      if (itemData.hinhanh === '' || itemData.hinhanh === null || (typeof itemData.hinhanh === 'object' && Object.keys(itemData.hinhanh).length === 0)) {
         delete itemData.hinhanh;
       }
 
@@ -192,7 +192,7 @@ class MenuController {
       if (itemData.tinhthue !== undefined && typeof itemData.tinhthue === 'string') {
         itemData.tinhthue = itemData.tinhthue === 'true' || itemData.tinhthue === '1';
       }
-      if (itemData.hinhanh && typeof itemData.hinhanh === 'object' && Object.keys(itemData.hinhanh).length === 0) {
+      if (itemData.hinhanh === '' || itemData.hinhanh === null || (typeof itemData.hinhanh === 'object' && Object.keys(itemData.hinhanh).length === 0)) {
         delete itemData.hinhanh;
       }
       // Debug: log upload info
