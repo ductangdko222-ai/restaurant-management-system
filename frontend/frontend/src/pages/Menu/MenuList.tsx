@@ -63,6 +63,13 @@ const emptyNhomForm = { tennhom: '', mota: '', thutu: 0 };
 const emptyBTForm = { loai: 'size', tenbienthe: '', giathem: 0 };
 const emptyDMForm = { nguyenvatlieuid: 0, soluong: 0, donvinhap: '' };
 
+const getImageUrl = (path?: string) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  const base = process.env.REACT_APP_API_URL?.replace(/\/api\/?$/i, '') || 'http://localhost:5000';
+  return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`;
+};
+
 const MenuList = () => {
   const [items, setItems] = useState<MonAn[]>([]);
   const [nhoms, setNhoms] = useState<NhomMon[]>([]);
@@ -404,7 +411,7 @@ const MenuList = () => {
             <input type="file" accept="image/*" className="w-full mt-1" onChange={(e) => setMonForm({ ...monForm, hinhanh: e.target.files?.[0] || '' })} />
             {editMon && monForm.hinhanh && typeof monForm.hinhanh === 'string' && (
               <div style={{ marginTop: 8 }}>
-                <img src={`${process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000'}${monForm.hinhanh}`} alt="Current" style={{ maxWidth: '100px', maxHeight: '100px' }} />
+                <img src={getImageUrl(monForm.hinhanh)} alt="Current" style={{ maxWidth: '100px', maxHeight: '100px' }} />
               </div>
             )}
           </div>
