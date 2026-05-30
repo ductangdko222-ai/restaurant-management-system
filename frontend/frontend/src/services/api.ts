@@ -247,6 +247,10 @@ class ApiService {
     return this.api.post(`/public/orders/${donhangid}/paypal/capture`, data);
   }
 
+  confirmOrder(id: number) {
+    return this.api.post(`/orders/${id}/confirm`);
+  }
+
   updateOrderItem(id: number, data: any) {
     return this.api.put(`/orders/items/${id}`, data);
   }

@@ -1,0 +1,4 @@
+Added a second PayPal button in MenuPublic.tsx to allow using the real PayPal SDK flow alongside the simulated flow.
+File patched: MenuPublic.tsx
+- New button calls handlePayWithPaypal to open the PayPal SDK dialog.
+- Existing simulated button left intact.

@@ -272,8 +272,9 @@ const OrderList = () => {
 
   const handleConfirmOrder = async (order: DonHang) => {
     try {
-      await api.updateOrderStatus(order.id, 'dangphucvu');
+      await api.confirmOrder(order.id);
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, trangthai: 'dangphucvu' } : o));
+      setSelectedOrder(prev => prev ? { ...prev, trangthai: 'dangphucvu' } : prev);
       toast.current?.show({ severity: 'success', summary: 'Xác nhận đơn', detail: `Đơn ${order.madon} đã xác nhận` });
     } catch {
       toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không thể xác nhận đơn' });
@@ -666,6 +667,18 @@ const OrderList = () => {
             <Button label="Đóng" severity="secondary" size="small"
               style={isMobile ? { flex: 1 } : {}}
               onClick={() => setDetailDialog(false)} />
+
+            {selectedOrder.trangthai === 'choxacnhan' && canConfirmOrder && (
+              <Button
+                label="Xác nhận đơn" icon="pi pi-check" size="small"
+                disabled={loadingDetail}
+                style={{
+                  ...(isMobile ? { flex: 1 } : {}),
+                  background: 'var(--color-success)', border: 'none', color: '#000',
+                }}
+                onClick={() => handleConfirmOrder(selectedOrder)}
+              />
+            )}
 
             {selectedOrder.trangthai === 'dangphucvu' && (
               <Button

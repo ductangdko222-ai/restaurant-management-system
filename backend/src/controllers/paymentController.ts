@@ -80,6 +80,8 @@ class PaymentController {
       const { id } = req.params;
       const { orderId } = req.body;
 
+      console.log('[PayPal Capture] Request params:', { id, orderId });
+
       if (!orderId) {
         res.status(400).json({ success: false, message: 'Thiếu orderId của PayPal' });
         return;
@@ -87,25 +89,34 @@ class PaymentController {
 
       let paypalCapture: any = null;
       if (orderId === 'SIMULATED') {
+        console.log('[PayPal Capture] Using simulated capture');
         paypalCapture = { simulated: true };
       } else {
+        console.log('[PayPal Capture] Capturing real PayPal order:', orderId);
         paypalCapture = await PayPalService.captureOrder(orderId);
       }
+      
+      console.log('[PayPal Capture] Getting order:', id);
       const order = await OrderService.getOrderById(Number(id));
       if (!order) {
+        console.warn('[PayPal Capture] Order not found:', id);
         res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
         return;
       }
+      
       // Khi khách thanh toán PayPal, gửi món xuống bếp trước (tạo phiếu bếp),
       // rồi tiếp tục tạo hoá đơn để ghi nhận thanh toán.
       try {
+        console.log('[PayPal Capture] Sending to kitchen for order:', id);
         await OrderService.sendToKitchen(Number(id));
-      } catch (err) {
+        console.log('[PayPal Capture] Kitchen tickets created');
+      } catch (err: any) {
         // Không làm gián đoạn luồng thanh toán nếu gửi bếp thất bại; chỉ log lỗi
-        console.error('Gửi bếp thất bại sau khi capture PayPal:', err);
+        console.warn('[PayPal Capture] Send to kitchen failed (non-critical):', err.message);
       }
 
       const amount = Number(order.tongthanhtoan || order.tongtien || 0);
+      console.log('[PayPal Capture] Processing payment, amount:', amount);
       const invoice = await PaymentService.processPayment({
         donhangid: order.id,
         nguoithunganid: null,
@@ -116,6 +127,7 @@ class PaymentController {
         ghichu: `Thanh toán PayPal: ${orderId}`
       });
 
+      console.log('[PayPal Capture] Payment processed successfully, invoice id:', invoice?.id);
       res.json({
         success: true,
         message: 'Thanh toán PayPal thành công',
@@ -125,9 +137,12 @@ class PaymentController {
         }
       });
     } catch (error: any) {
-      res.status(500).json({
+      console.error('[PayPal Capture] Error:', error);
+      const statusCode = error.status || 500;
+      const message = error.message || 'Không thể xác nhận thanh toán PayPal';
+      res.status(statusCode).json({
         success: false,
-        message: error.message || 'Không thể xác nhận thanh toán PayPal'
+        message: message
       });
     }
   }

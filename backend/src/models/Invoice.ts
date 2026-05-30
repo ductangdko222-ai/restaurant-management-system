@@ -216,7 +216,8 @@ class Invoice {
           AVG(tongtien) as giatrithbinh,
           SUM(CASE WHEN phuongthucthanhtoan = 'tienmat' THEN tongtien ELSE 0 END) as tienmat,
           SUM(CASE WHEN phuongthucthanhtoan = 'chuyenkhoan' THEN tongtien ELSE 0 END) as chuyenkhoan,
-          SUM(CASE WHEN phuongthucthanhtoan = 'vidientu' THEN tongtien ELSE 0 END) as vidientu
+          SUM(CASE WHEN phuongthucthanhtoan = 'vidientu' THEN tongtien ELSE 0 END) as vidientu,
+          SUM(CASE WHEN phuongthucthanhtoan = 'paypal' THEN tongtien ELSE 0 END) as paypal
         FROM hoadon
         WHERE 1=1
       `;
@@ -273,7 +274,8 @@ class Invoice {
           COALESCE(SUM(hd.tongtien), 0)                                                                  AS tongthu,
           COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'tienmat'  THEN hd.tongtien ELSE 0 END), 0) AS tienmat,
           COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'chuyenkhoan' THEN hd.tongtien ELSE 0 END), 0) AS chuyenkhoan,
-          COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'vidientu' THEN hd.tongtien ELSE 0 END), 0) AS vidientu
+          COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'vidientu' THEN hd.tongtien ELSE 0 END), 0) AS vidientu,
+          COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'paypal' THEN hd.tongtien ELSE 0 END), 0) AS paypal
          FROM hoadon hd
          JOIN donhang dh ON hd.donhangid = dh.id
          WHERE dh.calamviecid = ?`,
@@ -293,7 +295,8 @@ class Invoice {
           COALESCE(AVG(tongtien), 0) AS trungbinh,
           COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'tienmat' THEN tongtien ELSE 0 END), 0) AS tienmat,
           COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'chuyenkhoan' THEN tongtien ELSE 0 END), 0) AS chuyenkhoan,
-          COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'vidientu' THEN tongtien ELSE 0 END), 0) AS vidientu
+          COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'vidientu' THEN tongtien ELSE 0 END), 0) AS vidientu,
+          COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'paypal' THEN tongtien ELSE 0 END), 0) AS paypal
         FROM hoadon WHERE 1=1
       `;
       const params: any[] = [];

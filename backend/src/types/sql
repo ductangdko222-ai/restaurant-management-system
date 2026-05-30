@@ -216,7 +216,7 @@ CREATE TABLE hoadon (
     mahoadon VARCHAR(20) UNIQUE NOT NULL,
     donhangid INT NOT NULL,
     nguoithunganid INT,
-    phuongthucthanhtoan ENUM('tienmat', 'chuyenkhoan', 'vidientu') NOT NULL,
+    phuongthucthanhtoan ENUM('tienmat', 'chuyenkhoan', 'vidientu', 'paypal') NOT NULL,
     tongtien DECIMAL(15, 2) NOT NULL,
     tienkhacdua DECIMAL(15, 2) DEFAULT 0,
     tienthua DECIMAL(15, 2) DEFAULT 0,
