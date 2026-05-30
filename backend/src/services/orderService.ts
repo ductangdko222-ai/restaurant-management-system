@@ -258,12 +258,6 @@ class OrderService {
       if (!order) {
         throw new Error('Không tìm thấy đơn hàng');
       }
-
-      // Không cho update trạng thái nếu đơn đã thanh toán hoặc đã hủy
-      if (order.trangthai === TrangThaiDonHang.DA_THANH_TOAN || order.trangthai === TrangThaiDonHang.DA_HUY) {
-        throw new Error(`Không thể cập nhật đơn hàng ở trạng thái ${order.trangthai}`);
-      }
-
       const updatedOrder = await Order.update(id, { trangthai });
 
       if (trangthai === 'dathanhtoan' || trangthai === 'dahuy') {
