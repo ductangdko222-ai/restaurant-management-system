@@ -123,23 +123,58 @@ class OrderService {
   static async updateOrderItem(id: number, itemData: {
     soluong?: number;
     ghichu?: string;
+    trangthai?: TrangThaiChiTiet;
   }): Promise<boolean> {
     try {
       const result = await Order.updateItem(id, itemData);
 
-      if (itemData.soluong) {
+      let donhangid: number | null = null;
+      if (itemData.soluong || itemData.trangthai) {
         const [rows]: any = await db.query(
           'SELECT donhangid FROM chitietdonhang WHERE id = ?',
           [id]
         );
 
-        if (rows.length > 0) {
-          const totals = await Order.calculateTotal(rows[0].donhangid);
-          await Order.update(rows[0].donhangid, totals);
+        if (rows.length > 0 && rows[0].donhangid !== null) {
+          const orderId = rows[0].donhangid;
+          donhangid = orderId;
+          if (itemData.soluong) {
+            const totals = await Order.calculateTotal(orderId);
+            await Order.update(orderId, totals);
+          }
         }
       }
 
+      if (donhangid !== null && itemData.trangthai) {
+        await this.syncOrderStatusFromItems(donhangid);
+      }
+
       return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async syncOrderStatusFromItems(donhangid: number): Promise<any> {
+    try {
+      const order = await Order.findById(donhangid);
+      if (!order) throw new Error('Không tìm thấy đơn hàng');
+      if ([TrangThaiDonHang.DA_THANH_TOAN, TrangThaiDonHang.DA_HUY].includes(order.trangthai)) {
+        return order;
+      }
+
+      const items = order.chitiet || [];
+      const allServed = items.length > 0 && items.every((item: any) => item.trangthai === TrangThaiChiTiet.DA_PHUC_VU);
+
+      if (allServed) {
+        if (order.trangthai !== TrangThaiDonHang.CHO_THANH_TOAN) {
+          const updatedOrder = await Order.update(donhangid, { trangthai: TrangThaiDonHang.CHO_THANH_TOAN });
+          emitOrderUpdated(updatedOrder);
+          return updatedOrder;
+        }
+      }
+
+      return order;
     } catch (error) {
       throw error;
     }

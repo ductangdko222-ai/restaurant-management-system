@@ -74,8 +74,18 @@ class Order {
       const params: any[] = [];
 
       if (filters?.trangthai) {
-        query += ' AND d.trangthai = ?';
-        params.push(filters.trangthai);
+        if (filters.trangthai === 'choxacnhan') {
+          query += ` AND (
+            d.trangthai = ?
+            OR (d.trangthai = ? AND EXISTS (
+              SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai != 'daphucvu'
+            ))
+          )`;
+          params.push(filters.trangthai, 'dangphucvu');
+        } else {
+          query += ' AND d.trangthai = ?';
+          params.push(filters.trangthai);
+        }
       }
 
       if (filters?.banid) {

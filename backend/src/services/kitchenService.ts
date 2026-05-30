@@ -1,6 +1,7 @@
 // services/kitchenService.ts
 import KitchenTicket from '../models/KitchenTicket';
 import db from '../config/db';
+import OrderService from './orderService';
 import { KhuVucCheBien } from '../types';
 import { emitTicketUpdated, notifyWaiter } from '../config/socket';
 
@@ -53,6 +54,15 @@ class KitchenService {
           updatedTicket
         );
       }
+
+      const [orderRows]: any = await db.query(
+        'SELECT donhangid FROM chitietdonhang WHERE id = ?',
+        [ticket.chitietdonhangid]
+      );
+      if (orderRows.length > 0 && orderRows[0].donhangid !== null) {
+        await OrderService.syncOrderStatusFromItems(orderRows[0].donhangid);
+      }
+
       return updatedTicket;
     } catch (error) { throw error; }
   }
@@ -77,6 +87,14 @@ class KitchenService {
       // Lấy lại phiếu bếp đã cập nhật và emit sự kiện realtime
       const updatedTicket = await KitchenTicket.findById(id);
       if (updatedTicket) emitTicketUpdated(updatedTicket);
+
+      const [orderRows]: any = await db.query(
+        'SELECT donhangid FROM chitietdonhang WHERE id = ?',
+        [ticket.chitietdonhangid]
+      );
+      if (orderRows.length > 0 && orderRows[0].donhangid !== null) {
+        await OrderService.syncOrderStatusFromItems(orderRows[0].donhangid);
+      }
 
       return true;
     } catch (error) { throw error; }

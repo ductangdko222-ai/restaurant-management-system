@@ -3,7 +3,7 @@ import Invoice from '../models/Invoice';
 import Order from '../models/Order';
 import Shift from '../models/Shift';
 import Table from '../models/Table';
-import { PhuongThucThanhToan, TrangThaiDonHang, TrangThaiBan, TrangThaiChiTiet } from '../types';
+import { PhuongThucThanhToan, TrangThaiDonHang, TrangThaiBan } from '../types';
 import { emitOrderUpdated, emitTableUpdated } from '../config/socket';
 
 class PaymentService {
@@ -85,17 +85,12 @@ class PaymentService {
       });
 
       // Cập nhật trạng thái order
-      const hasPendingItems = order.chitiet.some((item: any) => item.trangthai !== TrangThaiChiTiet.DA_PHUC_VU);
-      const shouldCloseOrder = phuongthucthanhtoan !== PhuongThucThanhToan.PAYPAL || !hasPendingItems;
-
-      if (shouldCloseOrder) {
-        await Order.update(donhangid, {
-          trangthai: TrangThaiDonHang.DA_THANH_TOAN
-        });
-      }
+      await Order.update(donhangid, {
+        trangthai: TrangThaiDonHang.DA_THANH_TOAN
+      });
 
       // Cập nhật trạng thái bàn nếu là order tại bàn và không còn đơn đang mở khác trên bàn
-      if (order.banid && shouldCloseOrder) {
+      if (order.banid) {
         const remainingOrder = await Order.findActiveByTableId(order.banid);
         if (!remainingOrder) {
           await Table.updateStatus(order.banid, TrangThaiBan.TRONG);
@@ -105,7 +100,7 @@ class PaymentService {
       }
 
       // Emit realtime
-      const updatedOrder = shouldCloseOrder ? await Order.findById(donhangid) : order;
+      const updatedOrder = await Order.findById(donhangid);
       emitOrderUpdated(updatedOrder);
 
       return invoice;
