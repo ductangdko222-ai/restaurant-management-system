@@ -43,7 +43,7 @@ class PaymentController {
       const { id } = req.params;
       const { description } = req.body;
 
-      const order = await PaymentService.getOrderById(Number(id));
+      const order = await OrderService.getOrderById(Number(id));
       if (!order) {
         res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
         return;
@@ -91,7 +91,7 @@ class PaymentController {
       } else {
         paypalCapture = await PayPalService.captureOrder(orderId);
       }
-      const order = await PaymentService.getOrderById(Number(id));
+      const order = await OrderService.getOrderById(Number(id));
       if (!order) {
         res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
         return;
