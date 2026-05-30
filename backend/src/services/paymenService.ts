@@ -35,11 +35,14 @@ class PaymentService {
       }
 
       // Kiểm tra tất cả món đã phục vụ chưa
-      const pendingItems = order.chitiet.filter((item: any) =>
-        item.trangthai !== 'daphucvu'
-      );
-      if (pendingItems.length > 0) {
-        throw new Error('Còn món chưa phục vụ, vui lòng kiểm tra lại');
+      
+      if (phuongthucthanhtoan !== PhuongThucThanhToan.PAYPAL) {
+        const pendingItems = order.chitiet.filter((item: any) =>
+          item.trangthai !== 'daphucvu'
+        );
+        if (pendingItems.length > 0) {
+          throw new Error('Còn món chưa phục vụ, vui lòng kiểm tra lại');
+        }
       }
 
       // Tính toán tổng tiền cuối cùng

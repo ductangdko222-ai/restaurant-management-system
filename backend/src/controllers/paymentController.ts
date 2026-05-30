@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import PaymentService from '../services/paymenService';
 import PayPalService from '../services/paypalService';
+import OrderService from '../services/orderService';
 import { PhuongThucThanhToan } from '../types';
 
 class PaymentController {
@@ -84,11 +85,24 @@ class PaymentController {
         return;
       }
 
-      const paypalCapture = await PayPalService.captureOrder(orderId);
+      let paypalCapture: any = null;
+      if (orderId === 'SIMULATED') {
+        paypalCapture = { simulated: true };
+      } else {
+        paypalCapture = await PayPalService.captureOrder(orderId);
+      }
       const order = await PaymentService.getOrderById(Number(id));
       if (!order) {
         res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
         return;
+      }
+      // Khi khách thanh toán PayPal, gửi món xuống bếp trước (tạo phiếu bếp),
+      // rồi tiếp tục tạo hoá đơn để ghi nhận thanh toán.
+      try {
+        await OrderService.sendToKitchen(Number(id));
+      } catch (err) {
+        // Không làm gián đoạn luồng thanh toán nếu gửi bếp thất bại; chỉ log lỗi
+        console.error('Gửi bếp thất bại sau khi capture PayPal:', err);
       }
 
       const amount = Number(order.tongthanhtoan || order.tongtien || 0);

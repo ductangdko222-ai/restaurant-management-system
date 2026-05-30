@@ -292,6 +292,7 @@ const MenuPublic = () => {
   };
 
   const handlePayWithPaypal = async () => {
+    // Deprecated: keep for compatibility. Use simulated flow instead.
     if (!tableId || gioHang.length === 0) return;
     setIsSubmitting(true);
     setPaypalError(null);
@@ -319,6 +320,7 @@ const MenuPublic = () => {
       await fetchActiveOrder();
       await fetchTableInfo();
       setGioHang([]);
+      // Open payment dialog for real PayPal flow
       setShowPaymentDialog(true);
       toast.current?.show({
         severity: 'success',
@@ -327,6 +329,42 @@ const MenuPublic = () => {
       });
     } catch (error: any) {
       toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: error.response?.data?.message || error.message || 'Đặt hàng thất bại' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Simulate PayPal payment without loading the SDK (useful for testing)
+  const handleSimulatePaypal = async () => {
+    if (!tableId || gioHang.length === 0) return;
+    setIsSubmitting(true);
+    try {
+      const payloads = gioHang.map(g => ({
+        monanid: g.mon.id,
+        soluong: g.soluong,
+        dongia: Number(g.mon.giaban) + g.bienthe.reduce((a, b) => a + Number(b.giathem), 0),
+        ghichu: g.ghichu,
+        bienthe: g.bienthe.map(b => b.id)
+      }));
+
+      const res = await api.createPublicOrder({
+        loai: 'taiban',
+        banid: Number(tableId),
+        chitiet: payloads,
+        forceNew: true
+      });
+      const order = res.data.data;
+      if (!order?.id) throw new Error('Không thể xác định đơn hàng');
+
+      // Directly call capture endpoint with a simulated PayPal orderId
+      await api.capturePublicPaypalOrder(order.id, { orderId: 'SIMULATED' });
+
+      await fetchActiveOrder();
+      await fetchTableInfo();
+      setGioHang([]);
+      toast.current?.show({ severity: 'success', summary: 'Thanh toán giả lập thành công', detail: `Mã đơn: ${order.madon}` });
+    } catch (error: any) {
+      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: error.response?.data?.message || error.message || 'Thanh toán thất bại' });
     } finally {
       setIsSubmitting(false);
     }
@@ -615,10 +653,10 @@ const MenuPublic = () => {
                     )}
 
                     <Button
-                      label="Thanh toán PayPal"
+                      label="Thanh toán PayPal (Giả lập)"
                       icon="pi pi-credit-card"
                       disabled={gioHang.length === 0 || isSubmitting}
-                      onClick={handlePayWithPaypal}
+                      onClick={handleSimulatePaypal}
                       style={{ width: '100%', background: '#0070ba', border: 'none', color: '#fff', fontWeight: 700, padding: 12, letterSpacing: 0.5 }}
                     />
                   </div>
