@@ -224,7 +224,7 @@ const OrderList = () => {
       const chitiet: ChiTietMon[] = detail.chitiet || [];
       setOrderDetail(chitiet);
 
-      if (chitiet.length > 0 && allItemsServed(chitiet) && order.trangthai === 'dangphucvu' && order.trangthai !== 'dathanhtoan') {
+      if (chitiet.length > 0 && allItemsServed(chitiet) && order.trangthai === 'dangphucvu') {
         await api.updateOrderStatus(order.id, 'chothanhtoan');
         const patch = (o: DonHang) => o.id === order.id ? { ...o, trangthai: 'chothanhtoan' } : o;
         setOrders(prev => prev.map(patch));
