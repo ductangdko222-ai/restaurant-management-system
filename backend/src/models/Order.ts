@@ -81,7 +81,9 @@ class Order {
             OR (d.trangthai = ? AND EXISTS (
               SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai IN ('danglam', 'sansang')
             ))
-            OR (d.trangthai = ? AND h.phuongthucthanhtoan = ?)
+            OR (d.trangthai = ? AND h.phuongthucthanhtoan = ? AND EXISTS (
+              SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai != 'daphucvu'
+            ))
           )`;
           params.push(filters.trangthai, 'dangphucvu', 'dathanhtoan', 'paypal');
         } else if (filters.trangthai === 'dangphucvu') {
