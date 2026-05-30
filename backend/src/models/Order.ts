@@ -69,6 +69,7 @@ class Order {
         FROM donhang d
         LEFT JOIN ban b ON d.banid = b.id
         LEFT JOIN nguoidung nd ON d.nguoiphucvuid = nd.id
+        LEFT JOIN hoadon h ON h.donhangid = d.id
         WHERE 1=1
       `;
       const params: any[] = [];
@@ -78,10 +79,16 @@ class Order {
           query += ` AND (
             d.trangthai = ?
             OR (d.trangthai = ? AND EXISTS (
-              SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai != 'daphucvu'
+              SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai IN ('danglam', 'sansang')
             ))
+            OR (d.trangthai = ? AND h.phuongthucthanhtoan = ?)
           )`;
-          params.push(filters.trangthai, 'dangphucvu');
+          params.push(filters.trangthai, 'dangphucvu', 'dathanhtoan', 'paypal');
+        } else if (filters.trangthai === 'dangphucvu') {
+          query += ` AND d.trangthai = ? AND EXISTS (
+            SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai = ?
+          )`;
+          params.push(filters.trangthai, 'moi');
         } else {
           query += ' AND d.trangthai = ?';
           params.push(filters.trangthai);
