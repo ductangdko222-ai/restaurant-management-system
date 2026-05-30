@@ -55,12 +55,13 @@ class OrderService {
     calamviecid?: number;
     ghichu?: string;
     trangthai?: TrangThaiDonHang;
+    forceNew?: boolean;
   }): Promise<any> {
     try {
       if (orderData.loai === 'taiban' && !orderData.banid) {
         throw new Error('Vui lòng chọn bàn');
       }
-      if (orderData.banid) {
+      if (orderData.banid && !orderData.forceNew) {
         const existingOrder = await Order.findActiveByTableId(orderData.banid);
         if (existingOrder) {
           return existingOrder;

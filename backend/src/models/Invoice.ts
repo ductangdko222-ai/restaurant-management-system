@@ -130,7 +130,7 @@ class Invoice {
   static async create(invoiceData: {
     mahoadon: string;
     donhangid: number;
-    nguoithunganid: number;
+    nguoithunganid: number | null;
     phuongthucthanhtoan: PhuongThucThanhToan;
     tongtien: number;
     tienkhacdua: number;
@@ -248,11 +248,11 @@ class Invoice {
       let query = `
         SELECT
           m.id, m.mamon, m.tenmon, m.giaban,
-          SUM(ct.soluong)   AS tongban,
+          SUM(ct.soluong) AS tongban,
           SUM(ct.thanhtien) AS doanhthu
         FROM chitietdonhang ct
-        JOIN monan m    ON ct.monanid    = m.id
-        JOIN donhang dh ON ct.donhangid  = dh.id
+        JOIN monan m ON ct.monanid = m.id
+        JOIN donhang dh ON ct.donhangid = dh.id
         WHERE dh.trangthai = 'dathanhtoan'
       `;
       const params: any[] = [];
@@ -271,9 +271,9 @@ class Invoice {
         `SELECT
           COUNT(hd.id)                                                                                   AS sohoadon,
           COALESCE(SUM(hd.tongtien), 0)                                                                  AS tongthu,
-          COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'tienmat'     THEN hd.tongtien ELSE 0 END), 0) AS tienmat,
+          COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'tienmat'  THEN hd.tongtien ELSE 0 END), 0) AS tienmat,
           COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'chuyenkhoan' THEN hd.tongtien ELSE 0 END), 0) AS chuyenkhoan,
-          COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'vidientu'    THEN hd.tongtien ELSE 0 END), 0) AS vidientu
+          COALESCE(SUM(CASE WHEN hd.phuongthucthanhtoan = 'vidientu' THEN hd.tongtien ELSE 0 END), 0) AS vidientu
          FROM hoadon hd
          JOIN donhang dh ON hd.donhangid = dh.id
          WHERE dh.calamviecid = ?`,
@@ -288,12 +288,12 @@ class Invoice {
     try {
       let query = `
         SELECT
-          COUNT(id)                  AS sohoadon,
+          COUNT(id) AS sohoadon,
           COALESCE(SUM(tongtien), 0) AS tongthu,
           COALESCE(AVG(tongtien), 0) AS trungbinh,
-          COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'tienmat'     THEN tongtien ELSE 0 END), 0) AS tienmat,
+          COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'tienmat' THEN tongtien ELSE 0 END), 0) AS tienmat,
           COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'chuyenkhoan' THEN tongtien ELSE 0 END), 0) AS chuyenkhoan,
-          COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'vidientu'    THEN tongtien ELSE 0 END), 0) AS vidientu
+          COALESCE(SUM(CASE WHEN phuongthucthanhtoan = 'vidientu' THEN tongtien ELSE 0 END), 0) AS vidientu
         FROM hoadon WHERE 1=1
       `;
       const params: any[] = [];
@@ -364,7 +364,7 @@ class Invoice {
          FROM nguyenvatlieu WHERE tonkho <= tontoithieu ORDER BY tonkho ASC LIMIT 10`
       );
 
-      // Bàn chờ lâu (có phiếu bếp moi > 30 phút)
+      // Bàn chờ 
       const [banChoLau] = await db.query<RowDataPacket[]>(
         `SELECT b.tenban, dh.madon, MIN(pb.thoigiantao) AS thoigiantao,
                 TIMESTAMPDIFF(MINUTE, MIN(pb.thoigiantao), NOW()) AS phutcho
@@ -378,7 +378,7 @@ class Invoice {
          ORDER BY phutcho DESC`
       );
 
-      // Order pending (có món mới chưa gửi bếp)
+      // có món mới chưa gửi bế
       const [orderPending] = await db.query<RowDataPacket[]>(
         `SELECT dh.id, dh.madon, b.tenban, COUNT(ct.id) AS somon
          FROM donhang dh

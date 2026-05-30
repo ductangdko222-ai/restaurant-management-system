@@ -54,7 +54,7 @@ export const auth = async (
   }
 };
 
-// Middleware kiểm tra vai trò (role-based access control)
+// Middleware 
 export const authorize = (...roles: VaiTro[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {

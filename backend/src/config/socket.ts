@@ -4,10 +4,8 @@ import { Server, Socket } from 'socket.io';
 import AuthService from '../services/authServices';
 import { KhuVucCheBien } from '../types';
 
-// Lưu socket instances theo user ID
 const userSockets = new Map<number, string>();
 
-// Lưu socket instances theo khu vực bếp
 const kitchenSockets = new Map<KhuVucCheBien, Set<string>>();
 
 let io: Server;
@@ -29,11 +27,8 @@ export const initSocket = (httpServer: HTTPServer): Server => {
       if (!token) {
         return next(new Error('Authentication error'));
       }
-
-      // Verify token
       const decoded = AuthService.verifyToken(token);
       
-      // Gắn user info vào socket
       socket.data.user = decoded;
       
       next();
@@ -140,7 +135,6 @@ export const emitTicketUpdated = (ticket: any) => {
 export const emitOrderUpdated = (order: any) => {
   if (!io) return;
   
-  // Gửi cho phục vụ cụ thể nếu có
   if (order.nguoiphucvuid) {
     io.to(`waiter-${order.nguoiphucvuid}`).emit('order:updated', {
       type: 'ORDER_UPDATED',
@@ -149,7 +143,6 @@ export const emitOrderUpdated = (order: any) => {
     });
   }
   
-  // Gửi cho admin và mọi client khác để nhân viên có thể nhận đơn chờ xác nhận
   io.to('admin').emit('order:updated', {
     type: 'ORDER_UPDATED',
     data: order,
@@ -192,7 +185,7 @@ export const notifyWaiter = (nguoiphucvuid: number, message: string, data?: any)
   console.log(`Notification sent to waiter ${nguoiphucvuid}: ${message}`);
 };
 
-// Emit khi có đơn mới chờ xác nhận (từ khách hàng online)
+// Emit khi có đơn mới chờ xác nhận
 export const emitNewPendingOrder = (order: any) => {
   if (!io) return;
   
@@ -202,7 +195,7 @@ export const emitNewPendingOrder = (order: any) => {
     timestamp: new Date()
   });
   
-  console.log(`⚠️  New pending order for confirmation: ${order.madon}`);
+  console.log(`đơn chờ xác nhận: ${order.madon}`);
 };
 
 // Gửi thông báo tới tất cả

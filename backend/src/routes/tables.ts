@@ -6,7 +6,6 @@ import { VaiTro } from '../types';
 
 const router = Router();
 
-// Tất cả đều cần authentication
 router.use(auth);
 
 router.get('/', TableController.getAllTables);

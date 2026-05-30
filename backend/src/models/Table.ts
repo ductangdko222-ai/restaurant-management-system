@@ -88,10 +88,10 @@ class Table {
                 "INSERT INTO menuqr (maqr, banid, trangthai) VALUES (?, ?, 'hoatdong')",
                 [qrToken, newTableId]
             );
-            await connection.commit(); // Lưu nếu cả 2 câu lệnh đều thành công
+            await connection.commit(); 
             return await this.findById(newTableId);
         } catch (error) {
-            await connection.rollback(); // Hoàn tác nếu có bất kỳ lỗi nào xảy ra
+            await connection.rollback();
             throw error;
         } finally {
             connection.release();

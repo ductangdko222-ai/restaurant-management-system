@@ -31,7 +31,6 @@ const loaiBienTheOptions = [
   { label: 'Size', value: 'size' }, { label: 'Topping', value: 'topping' }, { label: 'Khác', value: 'khac' },
 ];
 
-// Bảng convert đơn vị: đơn vị gốc -> các đơn vị có thể nhập
 const donViConvert: Record<string, { label: string; value: string; heso: number }[]> = {
   'kg': [{ label: 'g (gram)', value: 'g', heso: 0.001 }, { label: 'kg', value: 'kg', heso: 1 }],
   'lít': [{ label: 'ml', value: 'ml', heso: 0.001 }, { label: 'lít', value: 'lít', heso: 1 }],
@@ -233,6 +232,7 @@ const MenuList = () => {
     }
     setSavingBT(true);
     try {
+      await api.addMenuItemModifier(selectedMon!.id, bienTheForm);
       const res = await api.getMenuItem(selectedMon!.id);
       setBienTheList(res.data.data?.bienthe || []);
       setBienTheForm(emptyBTForm);
@@ -408,7 +408,7 @@ const MenuList = () => {
           </div>
           <div>
             <label style={{ fontSize: 11, color: 'var(--color-caramel)', letterSpacing: 1 }}>HÌNH ẢNH</label>
-            <input type="file" accept="image/*" className="w-full mt-1" onChange={(e) => setMonForm({ ...monForm, hinhanh: e.target.files?.[0] || '' })} />
+            <input type="file" accept="image/*" className="w-full mt-1" onChange={(e) => setMonForm({ ...monForm, hinhanh: e.target.files?.[0] || null })} />
             {editMon && monForm.hinhanh && typeof monForm.hinhanh === 'string' && (
               <div style={{ marginTop: 8 }}>
                 <img src={getImageUrl(monForm.hinhanh)} alt="Current" style={{ maxWidth: '100px', maxHeight: '100px' }} />

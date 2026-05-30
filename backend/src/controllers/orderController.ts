@@ -72,6 +72,24 @@ class OrderController {
     }
   }
 
+  // GET /api/public/orders/:id
+  static async getPublicOrderById(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const order = await OrderService.getOrderById(Number(id));
+
+      res.json({
+        success: true,
+        data: order
+      });
+    } catch (error: any) {
+      res.status(404).json({
+        success: false,
+        message: error.message || 'Không tìm thấy đơn hàng'
+      });
+    }
+  }
+
   //    POST /api/orders
 
   static async createOrder(req: Request, res: Response): Promise<void> {

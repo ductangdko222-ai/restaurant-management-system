@@ -21,7 +21,6 @@ const trangThaiLabel: Record<string, string> = {
   moi: 'Mới', danglam: 'Đang làm', sansang: 'Sẵn sàng', daphucvu: 'Đã phục vụ',
 };
 
-// Hook detect mobile 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -257,7 +256,7 @@ const POS = () => {
     </div>
   );
 
-  // ── Panel Menu (dùng chung desktop + mobile) ─────────────────────
+  // Menu dùng chung
   const renderMenu = () => (
     <div style={{
       flex: 1,
@@ -266,7 +265,6 @@ const POS = () => {
       background: 'var(--color-deep-espresso)',
       border: '1px solid var(--color-dark-gray)',
       overflow: 'hidden',
-      // FIX: trên mobile chiếm toàn bộ chiều cao còn lại
       minHeight: 0,
     }}>
       {/* Header */}
@@ -277,14 +275,13 @@ const POS = () => {
         flexShrink: 0,
       }}>
         <div style={{ color: 'var(--color-caramel)', fontSize: 11, letterSpacing: 2 }}>THỰC ĐƠN</div>
-        {/* FIX: trên mobile ẩn nút Quay lại (đã có bottom nav), trên desktop giữ nguyên */}
         {!isMobile && (
           <Button icon="pi pi-arrow-left" size="small" severity="secondary"
             label="Quay lại" onClick={() => navigate('/tables')} />
         )}
       </div>
 
-      {/* Tab nhóm — FIX: scroll ngang thay vì wrap */}
+      {/* Tab nhóm scroll ngang  */}
       <div style={{
         display: 'flex',
         gap: 4,
@@ -525,7 +522,7 @@ const POS = () => {
                         cursor: 'pointer', fontSize: 16,
                         borderRadius: 2,
                       }}>+</button>
-                    {/* FIX: nút ghi chú và xóa tăng tap target */}
+                    {/* nút ghi chú  */}
                     <button onClick={() => openNote(item)}
                       style={{
                         marginLeft: 4, width: 36, height: 36,
@@ -578,7 +575,7 @@ const POS = () => {
         )}
       </div>
 
-      {/* Footer: tổng tiền + nút hành động */}
+      {/* tổng tiền + nút hành động */}
       {order && (
         <div style={{ padding: 12, borderTop: '1px solid var(--color-dark-gray)', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -634,7 +631,7 @@ const POS = () => {
           {renderOrder()}
         </>
       )}
-      {/* ── Mobile: chỉ hiển thị 1 panel theo tab ── */}
+      {/* chỉ hiển thị 1 panel theo tab */}
       {isMobile && (
         <>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -666,7 +663,7 @@ const POS = () => {
             </button>
 
             {/* Tab Thực đơn */}
-            <button
+            <button 
               onClick={() => setMobilePanel('menu')}
               style={{
                 flex: 1, height: 56,

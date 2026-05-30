@@ -12,9 +12,9 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { label: 'Dashboard', icon: 'pi-chart-bar', path: '/dashboard', roles: ['admin', 'thungan'] },
-  { label: 'Đặt món (POS)', icon: 'pi-shopping-cart', path: '/pos' },
-  { label: 'Danh sách đơn hàng', icon: 'pi-list', path: '/orders' },
-  { label: 'Bếp', icon: 'pi-fire', path: '/kitchen', roles: ['bep', 'bar', 'admin'] },
+  { label: 'Đặt món (POS)', icon: 'pi-shopping-cart', path: '/pos', roles: ['phucvu', 'admin'] },
+  { label: 'Danh sách đơn hàng', icon: 'pi pi-box', path: '/orders' },
+  { label: 'Bếp', icon: 'pi pi-hourglass', path: '/kitchen', roles: ['bep', 'bar', 'admin'] },
   { label: 'Thanh toán', icon: 'pi-credit-card', path: '/payment', roles: ['thungan', 'admin'] },
   { label: 'Sơ đồ bàn', icon: 'pi-th-large', path: '/tables/map' },
   { label: 'Danh sách bàn', icon: 'pi-list', path: '/tables' },

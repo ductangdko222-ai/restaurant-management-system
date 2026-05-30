@@ -10,7 +10,7 @@ class PaymentService {
   // Thanh toán đơn hàng
   static async processPayment(paymentData: {
     donhangid: number;
-    nguoithunganid: number;
+    nguoithunganid: number | null;
     phuongthucthanhtoan: PhuongThucThanhToan;
     tienkhacdua?: number;
     khuyenmaiid?: number | null;
@@ -85,11 +85,14 @@ class PaymentService {
         trangthai: TrangThaiDonHang.DA_THANH_TOAN
       });
 
-      // Cập nhật trạng thái bàn nếu là order tại bàn
+      // Cập nhật trạng thái bàn nếu là order tại bàn và không còn đơn đang mở khác trên bàn
       if (order.banid) {
-        await Table.updateStatus(order.banid, TrangThaiBan.TRONG);
-        const updatedTable = await Table.findById(order.banid);
-        if (updatedTable) emitTableUpdated(updatedTable);
+        const remainingOrder = await Order.findActiveByTableId(order.banid);
+        if (!remainingOrder) {
+          await Table.updateStatus(order.banid, TrangThaiBan.TRONG);
+          const updatedTable = await Table.findById(order.banid);
+          if (updatedTable) emitTableUpdated(updatedTable);
+        }
       }
 
       // Emit realtime

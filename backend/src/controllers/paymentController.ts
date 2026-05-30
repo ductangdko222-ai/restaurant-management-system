@@ -1,6 +1,7 @@
 // controllers/paymentController.ts
 import { Request, Response } from 'express';
 import PaymentService from '../services/paymenService';
+import PayPalService from '../services/paypalService';
 import { PhuongThucThanhToan } from '../types';
 
 class PaymentController {
@@ -31,6 +32,88 @@ class PaymentController {
       res.status(400).json({
         success: false,
         message: error.message || 'Thanh toán thất bại'
+      });
+    }
+  }
+
+  // POST /api/public/orders/:id/paypal/create
+  static async createPublicPaypalOrder(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { description } = req.body;
+
+      const order = await PaymentService.getOrderById(Number(id));
+      if (!order) {
+        res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+        return;
+      }
+
+      const amount = Number(order.tongthanhtoan || order.tongtien || 0);
+      if (amount <= 0) {
+        res.status(400).json({ success: false, message: 'Số tiền thanh toán không hợp lệ' });
+        return;
+      }
+
+      const paypalOrder = await PayPalService.createOrder(amount, description || `Thanh toán đơn ${order.madon}`, Number(id));
+
+      res.json({
+        success: true,
+        data: {
+          orderId: paypalOrder.id,
+          status: paypalOrder.status,
+          clientId: PayPalService.getClientId(),
+          currency: PayPalService.getCurrency()
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Không thể tạo PayPal order'
+      });
+    }
+  }
+
+  // POST /api/public/orders/:id/paypal/capture
+  static async capturePublicPaypalOrder(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { orderId } = req.body;
+
+      if (!orderId) {
+        res.status(400).json({ success: false, message: 'Thiếu orderId của PayPal' });
+        return;
+      }
+
+      const paypalCapture = await PayPalService.captureOrder(orderId);
+      const order = await PaymentService.getOrderById(Number(id));
+      if (!order) {
+        res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+        return;
+      }
+
+      const amount = Number(order.tongthanhtoan || order.tongtien || 0);
+      const invoice = await PaymentService.processPayment({
+        donhangid: order.id,
+        nguoithunganid: null,
+        phuongthucthanhtoan: PhuongThucThanhToan.PAYPAL,
+        tienkhacdua: amount,
+        tongthanhtoan: amount,
+        tienthua: 0,
+        ghichu: `Thanh toán PayPal: ${orderId}`
+      });
+
+      res.json({
+        success: true,
+        message: 'Thanh toán PayPal thành công',
+        data: {
+          invoice,
+          paypalCapture
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Không thể xác nhận thanh toán PayPal'
       });
     }
   }

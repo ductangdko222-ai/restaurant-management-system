@@ -203,7 +203,7 @@ const TableList = () => {
   `);
     printWindow.document.close();
   };
-
+ 
   const fetchAll = async () => {
     setLoadingTable(true);
     setLoadingArea(true);

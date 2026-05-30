@@ -52,7 +52,8 @@ export enum TrangThaiChiTiet {
 export enum PhuongThucThanhToan {
     TIEN_MAT = 'tienmat',
     CHUYEN_KHOAN = 'chuyenkhoan',
-    VI_DIEN_TU = 'vidientu'
+    VI_DIEN_TU = 'vidientu',
+    PAYPAL = 'paypal'
 }
 
 export enum LoaiKhuyenMai {

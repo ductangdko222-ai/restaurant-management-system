@@ -8,19 +8,26 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: API_URL,
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      baseURL: API_URL
     });
 
-    // Request interceptor - Thêm token vào header
+  
     this.api.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+        if (!config.headers) {
+          config.headers = {} as any;
         }
+        if (token) {
+          (config.headers as any).Authorization = `Bearer ${token}`;
+        }
+
+        if (config.data instanceof FormData) {
+          delete (config.headers as any)['Content-Type'];
+        } else {
+          (config.headers as any)['Content-Type'] = 'application/json';
+        }
+
         return config;
       },
       (error) => {
@@ -154,6 +161,10 @@ class ApiService {
     return this.api.post('/menu/items', data);
   }
 
+  addMenuItemModifier(monanid: number, data: any) {
+    return this.api.post(`/menu/items/${monanid}/modifiers`, data);
+  }
+
   updateMenuItem(id: number, data: any) {
     return this.api.put(`/menu/items/${id}`, data);
   }
@@ -216,12 +227,24 @@ class ApiService {
     return this.api.get(`/public/orders/table/${banid}`);
   }
 
+  getPublicOrderById(id: number) {
+    return this.api.get(`/public/orders/${id}`);
+  }
+
   createPublicOrder(data: any) {
     return this.api.post('/public/orders', data);
   }
 
   addItemToPublicOrder(donhangid: number, data: any) {
     return this.api.post(`/public/orders/${donhangid}/items`, data);
+  }
+
+  createPublicPaypalOrder(donhangid: number, data: any) {
+    return this.api.post(`/public/orders/${donhangid}/paypal/create`, data);
+  }
+
+  capturePublicPaypalOrder(donhangid: number, data: any) {
+    return this.api.post(`/public/orders/${donhangid}/paypal/capture`, data);
   }
 
   updateOrderItem(id: number, data: any) {

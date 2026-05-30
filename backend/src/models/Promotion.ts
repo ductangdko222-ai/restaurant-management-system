@@ -12,7 +12,7 @@ class KhuyenMai {
     };
   }
 
-  // Lấy danh sách khuyến mãi có bộ lọc
+  // Lấy danh sách
   static async findAll(filters?: {
     loai?: LoaiKhuyenMai;
     trangthai?: TrangThaiKhuyenMai;

@@ -41,7 +41,12 @@ const MenuPublic = () => {
   const [tableStatus, setTableStatus] = useState<'trong' | 'cokhach' | 'dattruoc' | null>(null);
   const [activeOrder, setActiveOrder] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [paypalError, setPaypalError] = useState<string | null>(null);
+  const [paypalLoading, setPaypalLoading] = useState(false);
+  const paypalContainerRef = useRef<HTMLDivElement | null>(null);
+  const paypalButtonsRendered = useRef(false);
 
   const orderStatusLabel = (status?: string) => {
     switch (status) {
@@ -104,7 +109,101 @@ const MenuPublic = () => {
     }
   };
 
-  // Lọc món theo search
+  const loadPaypalSdk = async (): Promise<void> => {
+    if ((window as any).paypal) return;
+    const clientId = process.env.REACT_APP_PAYPAL_CLIENT_ID;
+    const currency = process.env.REACT_APP_PAYPAL_CURRENCY || 'USD';
+    if (!clientId) {
+      throw new Error('Thiếu REACT_APP_PAYPAL_CLIENT_ID');
+    }
+
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-paypal-sdk]');
+      if (existing) {
+        if ((window as any).paypal) return resolve();
+        existing.addEventListener('load', () => resolve());
+        existing.addEventListener('error', () => reject(new Error('Không tải được PayPal SDK')));
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}`;
+      script.async = true;
+      script.setAttribute('data-paypal-sdk', 'true');
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Không tải được PayPal SDK'));
+      document.body.appendChild(script);
+    });
+  };
+
+  const renderPaypalButtons = async () => {
+    if (!paypalContainerRef.current || !activeOrder) return;
+    if (!(window as any).paypal) {
+      throw new Error('PayPal SDK chưa sẵn sàng');
+    }
+
+    paypalContainerRef.current.innerHTML = '';
+
+    (window as any).paypal.Buttons({
+      style: {
+        layout: 'vertical',
+        color: 'silver',
+        shape: 'rect',
+        label: 'paypal'
+      },
+      createOrder: async () => {
+        const res = await api.createPublicPaypalOrder(activeOrder.id, {
+          description: `Thanh toán đơn ${activeOrder.madon}`
+        });
+        return res.data.data.orderId;
+      },
+      onApprove: async (data: any) => {
+        if (!data.orderID) {
+          throw new Error('Không tìm thấy orderID từ PayPal');
+        }
+        await api.capturePublicPaypalOrder(activeOrder.id, { orderId: data.orderID });
+        await fetchActiveOrder();
+        await fetchTableInfo();
+        setShowPaymentDialog(false);
+        toast.current?.show({ severity: 'success', summary: 'Thanh toán PayPal thành công' });
+      },
+      onError: (err: any) => {
+        setPaypalError(err?.message || 'Lỗi PayPal');
+      },
+      onCancel: () => {
+        toast.current?.show({ severity: 'warn', summary: 'Đã hủy thanh toán PayPal' });
+      }
+    }).render(paypalContainerRef.current);
+
+    paypalButtonsRendered.current = true;
+  };
+
+  useEffect(() => {
+    if (!showPaymentDialog || !activeOrder) return;
+
+    const setup = async () => {
+      setPaypalLoading(true);
+      setPaypalError(null);
+      try {
+        await loadPaypalSdk();
+        await renderPaypalButtons();
+      } catch (error: any) {
+        setPaypalError(error.message || 'Không thể tải PayPal');
+      } finally {
+        setPaypalLoading(false);
+      }
+    };
+
+    setup();
+
+    return () => {
+      if (paypalContainerRef.current) {
+        paypalContainerRef.current.innerHTML = '';
+      }
+    };
+  }, [showPaymentDialog, activeOrder]);
+
+  // Lọc món 
   const filteredMenu = menu.map(nhom => ({
     ...nhom,
     monan: nhom.monan.filter(m =>
@@ -165,26 +264,16 @@ const MenuPublic = () => {
     }));
 
     try {
-      let order = activeOrder;
-      const createdNewOrder = !order;
-
-      if (!order) {
-        const res = await api.createPublicOrder({
-          loai: 'taiban',
-          banid: Number(tableId),
-          chitiet: payloads
-        });
-        order = res.data.data;
-      }
+      const res = await api.createPublicOrder({
+        loai: 'taiban',
+        banid: Number(tableId),
+        chitiet: payloads,
+        forceNew: true
+      });
+      const order = res.data.data;
 
       if (!order?.id) {
         throw new Error('Không thể xác định đơn hàng');
-      }
-
-      if (!createdNewOrder) {
-        for (const item of payloads) {
-          await api.addItemToPublicOrder(order.id, item);
-        }
       }
 
       await fetchActiveOrder();
@@ -192,8 +281,49 @@ const MenuPublic = () => {
       setGioHang([]);
       toast.current?.show({
         severity: 'success',
-        summary: createdNewOrder ? 'Tạo đơn thành công' : 'Thêm món vào đơn cũ',
+        summary: 'Tạo đơn mới thành công',
         detail: `Mã đơn: ${order.madon}`
+      });
+    } catch (error: any) {
+      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: error.response?.data?.message || error.message || 'Đặt hàng thất bại' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePayWithPaypal = async () => {
+    if (!tableId || gioHang.length === 0) return;
+    setIsSubmitting(true);
+    setPaypalError(null);
+
+    const payloads = gioHang.map(g => ({
+      monanid: g.mon.id,
+      soluong: g.soluong,
+      dongia: Number(g.mon.giaban) + g.bienthe.reduce((a, b) => a + Number(b.giathem), 0),
+      ghichu: g.ghichu,
+      bienthe: g.bienthe.map(b => b.id)
+    }));
+
+    try {
+      const res = await api.createPublicOrder({
+        loai: 'taiban',
+        banid: Number(tableId),
+        chitiet: payloads,
+        forceNew: true
+      });
+      const order = res.data.data;
+      if (!order?.id) {
+        throw new Error('Không thể xác định đơn hàng');
+      }
+
+      await fetchActiveOrder();
+      await fetchTableInfo();
+      setGioHang([]);
+      setShowPaymentDialog(true);
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Đã tạo đơn mới',
+        detail: `Mã đơn: ${order.madon}. Vui lòng hoàn tất thanh toán PayPal.`
       });
     } catch (error: any) {
       toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: error.response?.data?.message || error.message || 'Đặt hàng thất bại' });
@@ -477,12 +607,19 @@ const MenuPublic = () => {
                         {fmt(tongTien)}đ
                       </span>
                     </div>
+
+                    {activeOrder && (
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
+                        Bàn đang có đơn {activeOrder.madon}. Khi thanh toán PayPal, hệ thống sẽ tạo đơn mới cho giỏ hàng này.
+                      </div>
+                    )}
+
                     <Button
-                      label={activeOrder ? 'Thêm vào đơn cũ' : 'Tạo đơn mới'}
-                      icon={activeOrder ? 'pi pi-plus' : 'pi pi-check'}
+                      label="Thanh toán PayPal"
+                      icon="pi pi-credit-card"
                       disabled={gioHang.length === 0 || isSubmitting}
-                      onClick={handleOrder}
-                      style={{ width: '100%', background: 'var(--color-burnt-orange)', border: 'none', color: '#f5f5f5', fontWeight: 700, padding: 12, letterSpacing: 0.5 }}
+                      onClick={handlePayWithPaypal}
+                      style={{ width: '100%', background: '#0070ba', border: 'none', color: '#fff', fontWeight: 700, padding: 12, letterSpacing: 0.5 }}
                     />
                   </div>
                 </>
@@ -615,6 +752,45 @@ const MenuPublic = () => {
             </div>
           </div>
         )}
+      </Dialog>
+
+      <Dialog
+        header="Thanh toán PayPal"
+        visible={showPaymentDialog}
+        onHide={() => setShowPaymentDialog(false)}
+        style={{ width: 420 }}
+        modal
+        blockScroll
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ color: 'var(--color-text-secondary)' }}>Bạn đang thanh toán đơn:</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-off-white)' }}>
+            {activeOrder?.madon || '---'}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: 'var(--color-text-secondary)' }}>Số tiền cần thanh toán</span>
+            <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-caramel)' }}>
+              {fmt(Number(activeOrder?.tongthanhtoan || activeOrder?.tongtien || 0))}đ
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+            Đây là luồng thanh toán PayPal thật.
+          </div>
+
+          {paypalError && (
+            <div style={{ color: '#ffb4b4', fontSize: 13, marginBottom: 10 }}>
+              {paypalError}
+            </div>
+          )}
+
+          <div style={{ minHeight: 80 }} ref={paypalContainerRef} />
+
+          {paypalLoading && (
+            <div style={{ color: 'var(--color-text-secondary)', marginTop: 8 }}>
+              Đang tải PayPal... Vui lòng đợi.
+            </div>
+          )}
+        </div>
       </Dialog>
 
       {/*  SIDEBAR GIỎ HÀNG  */}

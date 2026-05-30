@@ -56,7 +56,6 @@ const KitchenScreen = () => {
   const parseDbDateTime = (value: string) => {
     if (!value) return new Date(NaN);
 
-    // Parse SQL datetime string as local time to avoid timezone offset issues
     const match = value.match(/^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?\s*$/);
     if (match) {
       const [, year, month, day, hour, minute, second] = match;
@@ -87,7 +86,7 @@ const KitchenScreen = () => {
     return 'var(--color-error)';
   };
 
-  const TicketCard = ({ ticket, col }: { ticket: Ticket; col: 'moi' | 'danglam' | 'sansang' }) => {
+  const TicketCard = ({ ticket, col, isTop = true }: { ticket: Ticket; col: 'moi' | 'danglam' | 'sansang'; isTop?: boolean }) => {
     const wait = getWaitTime(ticket.thoigiantao);
     return (
       <div style={{
@@ -130,12 +129,14 @@ const KitchenScreen = () => {
         {/* Nút action */}
         {col === 'moi' && (
           <Button label="Bắt đầu làm" icon="pi pi-play" size="small"
-            style={{ width: '100%', background: 'var(--color-warning)', border: 'none', color: '#000' }}
+            disabled={!isTop}
+            style={{ width: '100%', background: isTop ? 'var(--color-warning)' : 'var(--color-dark-gray)', border: 'none', color: isTop ? '#000' : '#666', cursor: isTop ? 'pointer' : 'not-allowed', opacity: isTop ? 1 : 0.7 }}
             onClick={() => handleStart(ticket.id)} />
         )}
         {col === 'danglam' && (
           <Button label="Hoàn thành" icon="pi pi-check" size="small"
-            style={{ width: '100%', background: 'var(--color-success)', border: 'none', color: '#000' }}
+            disabled={!isTop}
+            style={{ width: '100%', background: isTop ? 'var(--color-success)' : 'var(--color-dark-gray)', border: 'none', color: isTop ? '#000' : '#666', cursor: isTop ? 'pointer' : 'not-allowed', opacity: isTop ? 1 : 0.7 }}
             onClick={() => handleFinish(ticket.id)} />
         )}
         {col === 'sansang' && (
@@ -152,6 +153,10 @@ const KitchenScreen = () => {
     background: 'var(--color-deep-espresso)', border: `1px solid var(--color-dark-gray)`,
     borderTop: `3px solid ${color}`, overflow: 'hidden',
   });
+
+  const sortedMoi = (data.moi || []).slice().sort((a, b) => parseDbDateTime(a.thoigiantao).getTime() - parseDbDateTime(b.thoigiantao).getTime());
+  const sortedDanglam = (data.danglam || []).slice().sort((a, b) => parseDbDateTime(a.thoigiantao).getTime() - parseDbDateTime(b.thoigiantao).getTime());
+  const sortedSansang = (data.sansang || []).slice().sort((a, b) => parseDbDateTime(a.thoigiantao).getTime() - parseDbDateTime(b.thoigiantao).getTime());
 
   return (
     <div style={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
@@ -188,7 +193,7 @@ const KitchenScreen = () => {
           <div style={{ flex: 1, overflow: 'auto', padding: 10 }}>
             {loading ? <div style={{ color: 'var(--color-dark-gray)', fontSize: 12, textAlign: 'center', marginTop: 20 }}>Đang tải...</div>
               : data.moi.length === 0 ? <div style={{ color: 'var(--color-dark-gray)', fontSize: 12, textAlign: 'center', marginTop: 20 }}>Không có món</div>
-              : data.moi.map(t => <TicketCard key={t.id} ticket={t} col="moi" />)}
+              : sortedMoi.map((t, i) => <TicketCard key={t.id} ticket={t} col="moi" isTop={i === 0} />)}
           </div>
         </div>
 
@@ -201,7 +206,7 @@ const KitchenScreen = () => {
           <div style={{ flex: 1, overflow: 'auto', padding: 10 }}>
             {loading ? <div style={{ color: 'var(--color-dark-gray)', fontSize: 12, textAlign: 'center', marginTop: 20 }}>Đang tải...</div>
               : data.danglam.length === 0 ? <div style={{ color: 'var(--color-dark-gray)', fontSize: 12, textAlign: 'center', marginTop: 20 }}>Không có món</div>
-              : data.danglam.map(t => <TicketCard key={t.id} ticket={t} col="danglam" />)}
+              : sortedDanglam.map((t, i) => <TicketCard key={t.id} ticket={t} col="danglam" isTop={i === 0} />)}
           </div>
         </div>
 
@@ -214,7 +219,7 @@ const KitchenScreen = () => {
           <div style={{ flex: 1, overflow: 'auto', padding: 10 }}>
             {loading ? <div style={{ color: 'var(--color-dark-gray)', fontSize: 12, textAlign: 'center', marginTop: 20 }}>Đang tải...</div>
               : data.sansang.length === 0 ? <div style={{ color: 'var(--color-dark-gray)', fontSize: 12, textAlign: 'center', marginTop: 20 }}>Không có món</div>
-              : data.sansang.map(t => <TicketCard key={t.id} ticket={t} col="sansang" />)}
+              : sortedSansang.map((t, i) => <TicketCard key={t.id} ticket={t} col="sansang" isTop={i === 0} />)}
           </div>
         </div>
       </div>
