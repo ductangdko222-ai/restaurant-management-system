@@ -258,6 +258,11 @@ class OrderService {
       if (!order) {
         throw new Error('Không tìm thấy đơn hàng');
       }
+
+      if ([TrangThaiDonHang.DA_THANH_TOAN, TrangThaiDonHang.DA_HUY].includes(order.trangthai)) {
+        return order;
+      }
+
       const updatedOrder = await Order.update(id, { trangthai });
 
       if (trangthai === 'dathanhtoan' || trangthai === 'dahuy') {

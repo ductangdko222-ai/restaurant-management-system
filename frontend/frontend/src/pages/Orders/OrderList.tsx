@@ -224,7 +224,7 @@ const OrderList = () => {
       const chitiet: ChiTietMon[] = detail.chitiet || [];
       setOrderDetail(chitiet);
 
-      if (chitiet.length > 0 && allItemsServed(chitiet) && order.trangthai === 'dangphucvu') {
+      if (chitiet.length > 0 && allItemsServed(chitiet) && order.trangthai === 'dangphucvu' && order.trangthai !== 'dathanhtoan') {
         await api.updateOrderStatus(order.id, 'chothanhtoan');
         const patch = (o: DonHang) => o.id === order.id ? { ...o, trangthai: 'chothanhtoan' } : o;
         setOrders(prev => prev.map(patch));
@@ -244,11 +244,15 @@ const OrderList = () => {
       setOrderDetail(updated);
 
       if (selectedOrder && updated.every(i => i.trangthai === 'daphucvu')) {
-        await api.updateOrderStatus(selectedOrder.id, 'chothanhtoan');
-        const patch = (o: DonHang) => o.id === selectedOrder.id ? { ...o, trangthai: 'chothanhtoan' } : o;
-        setOrders(prev => prev.map(patch));
-        setSelectedOrder(prev => prev ? { ...prev, trangthai: 'chothanhtoan' } : prev);
-        toast.current?.show({ severity: 'success', summary: 'Hoàn tất', detail: 'Tất cả món đã phục vụ — sẵn sàng thanh toán' });
+        if (selectedOrder.trangthai !== 'dathanhtoan') {
+          await api.updateOrderStatus(selectedOrder.id, 'chothanhtoan');
+          const patch = (o: DonHang) => o.id === selectedOrder.id ? { ...o, trangthai: 'chothanhtoan' } : o;
+          setOrders(prev => prev.map(patch));
+          setSelectedOrder(prev => prev ? { ...prev, trangthai: 'chothanhtoan' } : prev);
+          toast.current?.show({ severity: 'success', summary: 'Hoàn tất', detail: 'Tất cả món đã phục vụ — sẵn sàng thanh toán' });
+        } else {
+          toast.current?.show({ severity: 'success', summary: 'Hoàn tất', detail: 'Tất cả món đã phục vụ — đơn đã thanh toán' });
+        }
       }
     } catch {
       toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không thể cập nhật trạng thái món' });
