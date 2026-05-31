@@ -17,9 +17,6 @@ const PAYPAL_BASE_URL = PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
 
-// VND to USD conversion rate (1 USD = ~24000 VND)
-const VND_TO_USD_RATE = 24000;
-
 class PayPalService {
   private static async request<T>(path: string, method: 'GET' | 'POST', headers: Record<string, string>, body?: string): Promise<T> {
     const url = new URL(`${PAYPAL_BASE_URL}${path}`);
@@ -74,31 +71,22 @@ class PayPalService {
     return response.access_token;
   }
 
-  static async createOrder(amount: number, description: string, orderId: number, returnUrl?: string): Promise<any> {
+  static async createOrder(amount: number, description: string, orderId: number): Promise<any> {
     const accessToken = await this.getAccessToken();
-    // Convert VND to USD
-    const amountUsd = Number((amount / VND_TO_USD_RATE).toFixed(2));
-    console.log(`[PayPalService] Converting amount: ${amount} VND = ${amountUsd} USD`);
-    
-    if (amountUsd < 0.01) {
-      throw new Error(`Amount too small: ${amountUsd} USD (minimum 0.01 USD)`);
-    }
-
-    const baseReturnUrl = returnUrl || process.env.PAYPAL_RETURN_URL || 'https://restaurant-backend-swoh.onrender.com/api/public/orders/paypal/return';
     const body = JSON.stringify({
       intent: 'CAPTURE',
       purchase_units: [{
         amount: {
           currency_code: PAYPAL_CURRENCY,
-          value: amountUsd.toString()
+          value: String(Number(amount).toFixed(2))
         },
-        description,
         custom_id: String(orderId)
       }],
       application_context: {
-        return_url: `${baseReturnUrl}?orderId=${orderId}&status=success`,
-        cancel_url: `${baseReturnUrl}?orderId=${orderId}&status=cancel`,
-        user_action: 'PAY'
+        brand_name: 'Restaurant Order',
+        locale: 'en-US',
+        landing_page: 'BILLING',
+        user_action: 'PAY_NOW'
       }
     });
 
