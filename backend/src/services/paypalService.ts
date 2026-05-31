@@ -84,7 +84,9 @@ class PayPalService {
     
     console.log(`[PayPalService] Converting amount: ${amount} VND = ${formattedValue} ${PAYPAL_CURRENCY}`);
 
-    const backendUrl = process.env.BACKEND_URL || 'https://restaurant-backend-swoh.onrender.com';
+    let backendUrl = process.env.BACKEND_URL || 'https://restaurant-backend-swoh.onrender.com';
+    backendUrl = backendUrl.replace(/\/+$/g, '');
+    backendUrl = backendUrl.replace(/\/api\/public$/i, '');
     const returnUrl = `${backendUrl}/api/public/orders/paypal/return?orderId=${orderId}&status=success`;
     const cancelUrl = `${backendUrl}/api/public/orders/paypal/return?orderId=${orderId}&status=cancelled`;
 

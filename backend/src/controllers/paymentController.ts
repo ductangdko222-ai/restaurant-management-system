@@ -273,10 +273,15 @@ class PaymentController {
       const { orderId, status } = req.query;
       console.log('[PayPal Return] User redirected from PayPal:', { orderId, status });
 
+      const frontendUrl = (process.env.FRONTEND_URL || process.env.BACKEND_URL || 'http://localhost:3000')
+        .toString()
+        .replace(/\/+$/g, '')
+        .replace(/\/api\/public$/i, '');
+
       if (!orderId || status !== 'success') {
         console.log('[PayPal Return] Payment cancelled or invalid');
-        // Redirect to payment screen if cancelled
-        res.redirect(`/payment?orderId=${orderId}&paypalStatus=cancelled`);
+        // Redirect to frontend payment screen if cancelled
+        res.redirect(`${frontendUrl}/payment?orderId=${orderId}&paypalStatus=cancelled`);
         return;
       }
 
@@ -284,7 +289,7 @@ class PaymentController {
       const order = await OrderService.getOrderById(Number(orderId));
       if (!order) {
         console.warn('[PayPal Return] Order not found:', orderId);
-        res.redirect(`/payment?orderId=${orderId}&paypalStatus=notfound`);
+        res.redirect(`${frontendUrl}/payment?orderId=${orderId}&paypalStatus=notfound`);
         return;
       }
 
@@ -293,7 +298,7 @@ class PaymentController {
       // If already paid, just redirect back
       if (order.trangthai === 'dathanhtoan') {
         console.log('[PayPal Return] Order already paid');
-        res.redirect(`/payment?orderId=${orderId}&paypalStatus=completed`);
+        res.redirect(`${frontendUrl}/payment?orderId=${orderId}&paypalStatus=completed`);
         return;
       }
 
@@ -313,15 +318,19 @@ class PaymentController {
         });
         
         console.log('[PayPal Return] Payment processed successfully:', { invoiceId: invoice?.id, mahoadon: invoice?.mahoadon });
-        res.redirect(`/payment?orderId=${orderId}&paypalStatus=completed`);
+        res.redirect(`${frontendUrl}/payment?orderId=${orderId}&paypalStatus=completed`);
       } catch (paymentError: any) {
         console.error('[PayPal Return] Payment processing failed:', paymentError.message);
         // Still redirect back but with waiting status so user can see polling in action
-        res.redirect(`/payment?orderId=${orderId}&paypalStatus=waiting`);
+        res.redirect(`${frontendUrl}/payment?orderId=${orderId}&paypalStatus=waiting`);
       }
     } catch (error: any) {
       console.error('[PayPal Return] Error:', error);
-      res.redirect(`/?error=paypal`);
+      const frontendUrl = (process.env.FRONTEND_URL || process.env.BACKEND_URL || 'http://localhost:3000')
+        .toString()
+        .replace(/\/+$/g, '')
+        .replace(/\/api\/public$/i, '');
+      res.redirect(`${frontendUrl}/?error=paypal`);
     }
   }
 
