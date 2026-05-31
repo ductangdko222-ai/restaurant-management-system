@@ -6,12 +6,15 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Toast } from 'primereact/toast';
 import { Tag } from 'primereact/tag';
 import api from '../../services/api';
+import socketClient from '../../services/socketClient';
+import QRCode from 'react-qr-code';
 import { ChiTiet, DonHang, HoaDon, IKhuyenMai } from '../../types/payment';
 
 const phuongThucOptions = [
   { label: 'Tiền mặt', value: 'tienmat', icon: 'pi-wallet' },
   { label: 'Chuyển khoản', value: 'chuyenkhoan', icon: 'pi-credit-card' },
   { label: 'Ví điện tử', value: 'vidientu', icon: 'pi-mobile' },
+  { label: 'PayPal', value: 'paypal', icon: 'pi-paypal' },
 ];
 
 const tinhTienGiam = (km: IKhuyenMai, tongTien: number): number => {
@@ -41,6 +44,17 @@ const PaymentScreen = () => {
   const [invoiceDialog, setInvoiceDialog] = useState(false);
   const [invoice, setInvoice] = useState<HoaDon | null>(null);
 
+  const [paypalDialogVisible, setPaypalDialogVisible] = useState(false);
+  const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null);
+  const [paypalApproveUrl, setPaypalApproveUrl] = useState<string | null>(null);
+  const [paypalStatus, setPaypalStatus] = useState<'idle' | 'pending' | 'paid' | 'failed'>('idle');
+  const [paypalMessage, setPaypalMessage] = useState<string>('');
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  const paypalMode = process.env.REACT_APP_PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
+  const getPaypalCheckoutUrl = (token: string) =>
+    `https://${paypalMode === 'sandbox' ? 'www.sandbox.' : 'www.'}paypal.com/checkoutnow?token=${token}`;
+
   useEffect(() => {
     if (orderId) fetchOrder();
     else setLoading(false);
@@ -66,6 +80,89 @@ const PaymentScreen = () => {
       const res = await api.getKhuyenMaiHieuLuc();
       setDanhSachKM(res.data.data);
     } catch { /* không hiện lỗi, KM là optional */ }
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const socket = socketClient.connectSocket(token);
+    const onConnect = () => setSocketConnected(true);
+    const onDisconnect = () => setSocketConnected(false);
+
+    const handleSocketOrderUpdated = (payload: any) => {
+      const updatedOrder = payload?.data || payload;
+      if (!order || !updatedOrder || updatedOrder.id !== order.id) return;
+      if (updatedOrder.trangthai !== 'dathanhtoan') return;
+      if (paypalStatus !== 'pending' && !paypalDialogVisible) return;
+
+      setOrder(updatedOrder);
+      setPaypalStatus('paid');
+      setPaypalMessage('Thanh toán PayPal đã hoàn tất. Màn hình tự động cập nhật.');
+      setPaypalDialogVisible(true);
+      toast.current?.show({ severity: 'success', summary: 'Thanh toán hoàn tất', detail: 'Đơn hàng đã được thanh toán qua PayPal' });
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('order:updated', handleSocketOrderUpdated);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('order:updated', handleSocketOrderUpdated);
+    };
+  }, [order]);
+
+  useEffect(() => {
+    if (!paypalDialogVisible || socketConnected || !order?.id) return;
+
+    const timer = setInterval(async () => {
+      try {
+        const res = await api.getOrder(order.id);
+        const latestOrder = res.data.data;
+        if (latestOrder.trangthai === 'dathanhtoan') {
+          setOrder(latestOrder);
+          setPaypalStatus('paid');
+          setPaypalMessage('Thanh toán PayPal đã hoàn tất.');
+          toast.current?.show({ severity: 'success', summary: 'Thanh toán hoàn tất', detail: 'Đơn hàng đã được thanh toán qua PayPal' });
+          setPaypalDialogVisible(true);
+          clearInterval(timer);
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [paypalDialogVisible, socketConnected, order?.id]);
+
+  const handlePayPalCheckout = async () => {
+    if (!order) return;
+    setProcessing(true);
+    setPaypalStatus('pending');
+    setPaypalMessage('Đang tạo đơn PayPal...');
+
+    try {
+      const res = await api.createPublicPaypalOrder(order.id, {
+        description: `Thanh toán đơn ${order.madon}`
+      });
+      const data = res.data.data;
+      const approveUrl = data.approveUrl || getPaypalCheckoutUrl(data.orderId);
+
+      setPaypalOrderId(data.orderId);
+      setPaypalApproveUrl(approveUrl);
+      setPaypalStatus('pending');
+      setPaypalMessage('Quét mã QR để thanh toán PayPal. Hệ thống sẽ tự động nhận thông báo khi giao dịch hoàn tất.');
+      setPaypalDialogVisible(true);
+      toast.current?.show({ severity: 'info', summary: 'Đang chờ PayPal', detail: 'Quét mã QR để hoàn tất thanh toán.' });
+    } catch (error: any) {
+      toast.current?.show({ severity: 'error', summary: 'Lỗi PayPal', detail: error.response?.data?.message || error.message || 'Không thể tạo yêu cầu PayPal' });
+      setPaypalStatus('failed');
+      setPaypalMessage('Không thể tạo yêu cầu PayPal. Vui lòng thử lại.');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   // Tính toán tiền
@@ -99,6 +196,12 @@ const PaymentScreen = () => {
       toast.current?.show({ severity: 'warn', summary: 'Không đủ tiền', detail: 'Tiền khách đưa không đủ' });
       return;
     }
+
+    if (phuongThuc === 'paypal') {
+      await handlePayPalCheckout();
+      return;
+    }
+
     setProcessing(true);
     try {
       const res = await api.processPayment({
@@ -303,7 +406,7 @@ const PaymentScreen = () => {
         )}
 
         <Button
-          label="XÁC NHẬN THANH TOÁN" icon="pi pi-check"
+          label={phuongThuc === 'paypal' ? 'Thanh toán PayPal' : 'XÁC NHẬN THANH TOÁN'} icon="pi pi-check"
           loading={processing} disabled={!order}
           style={{ background: 'var(--color-burnt-orange)', border: 'none', color: '#f5f5f5', fontWeight: 700, padding: 14, letterSpacing: 1 }}
           onClick={handlePayment}
@@ -335,6 +438,77 @@ const PaymentScreen = () => {
               />
             </button>
           ))}
+        </div>
+      </Dialog>
+
+      {/*  DIALOG THANH TOÁN PAYPAL  */}
+      <Dialog header="Thanh toán PayPal" visible={paypalDialogVisible}
+        style={{ width: 460 }} onHide={() => {
+          setPaypalDialogVisible(false);
+          setPaypalStatus('idle');
+          setPaypalMessage('');
+          setPaypalOrderId(null);
+          setPaypalApproveUrl(null);
+        }} modal blockScroll>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', padding: 16 }}>
+          <div style={{ textAlign: 'center' }}>
+            {paypalStatus === 'paid' ? (
+              <>
+                <i className="pi pi-check-circle" style={{ fontSize: 40, color: 'var(--color-success)', marginBottom: 8 }} />
+                <div style={{ color: 'var(--color-off-white)', fontSize: 16, fontWeight: 700 }}>Thanh toán thành công!</div>
+              </>
+            ) : (
+              <>
+                <i className="pi pi-qrcode" style={{ fontSize: 40, color: 'var(--color-caramel)', marginBottom: 8 }} />
+                <div style={{ color: 'var(--color-off-white)', fontSize: 16, fontWeight: 700 }}>Quét mã QR để thanh toán</div>
+              </>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', alignItems: 'center' }}>
+            {paypalApproveUrl ? (
+              <div style={{ background: '#fff', padding: 16, borderRadius: 16 }}>
+                <QRCode value={paypalApproveUrl} size={220} />
+              </div>
+            ) : (
+              <div style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>Đang tạo mã QR...</div>
+            )}
+
+            {paypalApproveUrl && (
+              <div style={{ width: '100%', wordBreak: 'break-word', fontSize: 12, color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                {paypalApproveUrl}
+              </div>
+            )}
+
+            <div style={{ color: socketConnected ? '#6ee7b7' : '#fbbf24', fontSize: 12, textAlign: 'center' }}>
+              {socketConnected
+                ? 'Realtime đang bật. Hệ thống sẽ tự động nhận thông báo khi khách hoàn tất thanh toán.'
+                : 'Realtime chưa sẵn sàng. Hệ thống sẽ kiểm tra trạng thái định kỳ.'}
+            </div>
+
+            {paypalMessage && (
+              <div style={{ fontSize: 13, color: 'var(--color-off-white)', textAlign: 'center' }}>
+                {paypalMessage}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, width: '100%', justifyContent: 'center' }}>
+            <Button
+              label="Mở PayPal"
+              icon="pi pi-external-link"
+              disabled={!paypalApproveUrl}
+              onClick={() => paypalApproveUrl && window.open(paypalApproveUrl, '_blank')}
+              style={{ flex: 1 }}
+            />
+            <Button
+              label="Đóng"
+              severity="secondary"
+              text
+              onClick={() => setPaypalDialogVisible(false)}
+              style={{ flex: 1 }}
+            />
+          </div>
         </div>
       </Dialog>
 

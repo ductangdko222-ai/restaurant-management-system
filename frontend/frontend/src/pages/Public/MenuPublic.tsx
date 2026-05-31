@@ -351,48 +351,6 @@ const MenuPublic = () => {
     }
   };
 
-  // Simulate PayPal payment without loading the SDK (useful for testing)
-  const handleSimulatePaypal = async () => {
-    if (!tableId || gioHang.length === 0) return;
-    setIsSubmitting(true);
-    try {
-      const payloads = gioHang.map(g => ({
-        monanid: g.mon.id,
-        soluong: g.soluong,
-        dongia: Number(g.mon.giaban) + g.bienthe.reduce((a, b) => a + Number(b.giathem), 0),
-        ghichu: g.ghichu,
-        bienthe: g.bienthe.map(b => b.id)
-      }));
-
-      console.log('[PayPal Simulate] Creating order with payloads:', payloads);
-      const res = await api.createPublicOrder({
-        loai: 'taiban',
-        banid: Number(tableId),
-        chitiet: payloads,
-        forceNew: true
-      });
-      console.log('[PayPal Simulate] Order created:', res.data);
-      const order = res.data.data;
-      if (!order?.id) throw new Error('Không thể xác định đơn hàng');
-
-      // Directly call capture endpoint with a simulated PayPal orderId
-      console.log('[PayPal Simulate] Calling capture with orderId: SIMULATED');
-      const captureRes = await api.capturePublicPaypalOrder(order.id, { orderId: 'SIMULATED' });
-      console.log('[PayPal Simulate] Capture response:', captureRes.data);
-
-      await fetchActiveOrder();
-      await fetchTableInfo();
-      setGioHang([]);
-      toast.current?.show({ severity: 'success', summary: 'Thanh toán giả lập thành công', detail: `Mã đơn: ${order.madon}` });
-    } catch (error: any) {
-      console.error('[PayPal Simulate] Error:', error);
-      console.error('[PayPal Simulate] Error response:', error.response?.data);
-      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: error.response?.data?.message || error.message || 'Thanh toán thất bại' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const detailTong = showDetail
     ? Number(showDetail.giaban) + detailBT.reduce((s, b) => s + Number(b.giathem), 0)
     : 0;
@@ -677,18 +635,11 @@ const MenuPublic = () => {
 
                     <div style={{ display: 'flex', gap: 8 }}>
                       <Button
-                        label="Thanh toán PayPal (Giả lập)"
-                        icon="pi pi-credit-card"
-                        disabled={gioHang.length === 0 || isSubmitting}
-                        onClick={handleSimulatePaypal}
-                        style={{ flex: 1, background: '#0070ba', border: 'none', color: '#fff', fontWeight: 700, padding: 12, letterSpacing: 0.5 }}
-                      />
-                      <Button
-                        label="Thanh toán PayPal (Thật)"
+                        label="Thanh toán PayPal"
                         icon="pi pi-paypal"
                         disabled={gioHang.length === 0 || isSubmitting}
                         onClick={handlePayWithPaypal}
-                        style={{ width: 120, background: '#003087', border: 'none', color: '#fff', fontWeight: 700, padding: 12 }}
+                        style={{ width: '100%', background: '#003087', border: 'none', color: '#fff', fontWeight: 700, padding: 12 }}
                       />
                     </div>
                   </div>

@@ -56,6 +56,8 @@ class PaymentController {
       }
 
       const paypalOrder = await PayPalService.createOrder(amount, description || `Thanh toán đơn ${order.madon}`, Number(id));
+      const approveUrl = paypalOrder.links?.find((link: any) => link.rel === 'approve')?.href ||
+        `https://${PayPalService.getMode() === 'sandbox' ? 'www.sandbox.' : 'www.'}paypal.com/checkoutnow?token=${paypalOrder.id}`;
 
       res.json({
         success: true,
@@ -63,7 +65,8 @@ class PaymentController {
           orderId: paypalOrder.id,
           status: paypalOrder.status,
           clientId: PayPalService.getClientId(),
-          currency: PayPalService.getCurrency()
+          currency: PayPalService.getCurrency(),
+          approveUrl
         }
       });
     } catch (error: any) {
@@ -71,6 +74,59 @@ class PaymentController {
         success: false,
         message: error.message || 'Không thể tạo PayPal order'
       });
+    }
+  }
+
+  // POST /api/public/paypal/webhook
+  static async paypalWebhook(req: Request, res: Response): Promise<void> {
+    try {
+      const event = req.body;
+      const eventType = event?.event_type;
+      const resource = event?.resource || {};
+      const paypalOrderId = resource?.id || resource?.order_id;
+      const customId = resource?.purchase_units?.[0]?.custom_id || resource?.custom_id;
+      const orderId = Number(customId);
+
+      if (!paypalOrderId || !orderId) {
+        res.status(400).json({ success: false, message: 'Invalid PayPal webhook payload' });
+        return;
+      }
+
+      if (eventType === 'CHECKOUT.ORDER.APPROVED' || eventType === 'PAYMENT.CAPTURE.COMPLETED' || eventType === 'CHECKOUT.ORDER.COMPLETED') {
+        const order = await OrderService.getOrderById(orderId);
+        if (!order) {
+          res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+          return;
+        }
+
+        if (order.trangthai === 'dathanhtoan') {
+          res.json({ success: true, message: 'Order đã được thanh toán trước đó' });
+          return;
+        }
+
+        if (eventType === 'CHECKOUT.ORDER.APPROVED') {
+          await PayPalService.captureOrder(paypalOrderId);
+        }
+
+        const amount = Number(order.tongthanhtoan || order.tongtien || 0);
+        await PaymentService.processPayment({
+          donhangid: order.id,
+          nguoithunganid: null,
+          phuongthucthanhtoan: PhuongThucThanhToan.PAYPAL,
+          tienkhacdua: amount,
+          tongthanhtoan: amount,
+          tienthua: 0,
+          ghichu: `Thanh toán PayPal: ${paypalOrderId}`
+        });
+
+        res.json({ success: true, message: 'Webhook PayPal đã xử lý thành công' });
+        return;
+      }
+
+      res.json({ success: true, message: 'Webhook PayPal không cần xử lý event này' });
+    } catch (error: any) {
+      console.error('[PayPal Webhook] Error:', error);
+      res.status(500).json({ success: false, message: error.message || 'Lỗi khi xử lý webhook PayPal' });
     }
   }
 

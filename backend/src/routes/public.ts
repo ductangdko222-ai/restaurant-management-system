@@ -19,5 +19,6 @@ router.post('/orders', OrderController.createPublicOrder);
 router.post('/orders/:id/items', OrderController.addItemToPublicOrder);
 router.post('/orders/:id/paypal/create', PaymentController.createPublicPaypalOrder);
 router.post('/orders/:id/paypal/capture', PaymentController.capturePublicPaypalOrder);
+router.post('/paypal/webhook', PaymentController.paypalWebhook);
 
 export default router;

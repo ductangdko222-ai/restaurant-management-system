@@ -71,7 +71,7 @@ class PayPalService {
     return response.access_token;
   }
 
-  static async createOrder(amount: number, description: string, orderId: number): Promise<{ id: string; status: string }> {
+  static async createOrder(amount: number, description: string, orderId: number): Promise<any> {
     const accessToken = await this.getAccessToken();
     const body = JSON.stringify({
       intent: 'CAPTURE',
@@ -85,7 +85,7 @@ class PayPalService {
       }]
     });
 
-    const response = await this.request<{ id: string; status: string }>(
+    const response = await this.request<any>(
       '/v2/checkout/orders',
       'POST',
       {
@@ -119,6 +119,10 @@ class PayPalService {
 
   static getCurrency(): string {
     return PAYPAL_CURRENCY;
+  }
+
+  static getMode(): 'live' | 'sandbox' {
+    return PAYPAL_MODE as 'live' | 'sandbox';
   }
 }
 
