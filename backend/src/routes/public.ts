@@ -15,6 +15,7 @@ router.get('/tables/:id', TableController.getTableById);
 
 router.get('/orders/table/:banid', OrderController.getActiveOrderByTable);
 router.get('/orders/:id', OrderController.getPublicOrderById);
+router.get('/orders/:id/verify-payment', PaymentController.verifyPaypalPayment);
 router.post('/orders', OrderController.createPublicOrder);
 router.post('/orders/:id/items', OrderController.addItemToPublicOrder);
 router.post('/orders/:id/paypal/create', PaymentController.createPublicPaypalOrder);

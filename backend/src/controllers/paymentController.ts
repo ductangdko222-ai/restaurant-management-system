@@ -37,6 +37,55 @@ class PaymentController {
     }
   }
 
+  // GET /api/public/orders/:id/verify-payment
+  // Used by frontend to check if payment has been processed
+  static async verifyPaypalPayment(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      
+      console.log('[Verify Payment] Checking payment status for orderId:', id);
+      
+      const order = await OrderService.getOrderById(Number(id));
+      if (!order) {
+        console.warn('[Verify Payment] Order not found:', id);
+        res.status(404).json({ 
+          success: false, 
+          message: 'Không tìm thấy đơn hàng' 
+        });
+        return;
+      }
+
+      console.log('[Verify Payment] Order found:', { id: order.id, madon: order.madon, trangthai: order.trangthai });
+
+      // If already paid, return success
+      if (order.trangthai === 'dathanhtoan') {
+        console.log('[Verify Payment] Order already paid');
+        res.json({
+          success: true,
+          paid: true,
+          message: 'Đơn hàng đã được thanh toán',
+          data: order
+        });
+        return;
+      }
+
+      // Return unpaid status
+      console.log('[Verify Payment] Order not yet paid');
+      res.json({
+        success: true,
+        paid: false,
+        message: 'Đơn hàng chưa được thanh toán',
+        data: order
+      });
+    } catch (error: any) {
+      console.error('[Verify Payment] Error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Lỗi khi kiểm tra trạng thái thanh toán'
+      });
+    }
+  }
+
   // POST /api/public/orders/:id/paypal/create
   static async createPublicPaypalOrder(req: Request, res: Response): Promise<void> {
     try {
@@ -248,10 +297,28 @@ class PaymentController {
         return;
       }
 
-      // Redirect back to payment screen
-      // Frontend will use polling to check payment status
-      console.log('[PayPal Return] Redirecting to payment screen, frontend will poll for status');
-      res.redirect(`/payment?orderId=${orderId}&paypalStatus=waiting`);
+      // Process payment now that user returned from PayPal
+      try {
+        console.log('[PayPal Return] Processing payment for order:', Number(orderId));
+        const amount = Number(order.tongthanhtoan || order.tongtien || 0);
+        
+        const invoice = await PaymentService.processPayment({
+          donhangid: order.id,
+          nguoithunganid: null,
+          phuongthucthanhtoan: PhuongThucThanhToan.PAYPAL,
+          tienkhacdua: amount,
+          tongthanhtoan: amount,
+          tienthua: 0,
+          ghichu: 'Thanh toán PayPal (Return from PayPal)'
+        });
+        
+        console.log('[PayPal Return] Payment processed successfully:', { invoiceId: invoice?.id, mahoadon: invoice?.mahoadon });
+        res.redirect(`/payment?orderId=${orderId}&paypalStatus=completed`);
+      } catch (paymentError: any) {
+        console.error('[PayPal Return] Payment processing failed:', paymentError.message);
+        // Still redirect back but with waiting status so user can see polling in action
+        res.redirect(`/payment?orderId=${orderId}&paypalStatus=waiting`);
+      }
     } catch (error: any) {
       console.error('[PayPal Return] Error:', error);
       res.redirect(`/?error=paypal`);

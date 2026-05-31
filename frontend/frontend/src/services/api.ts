@@ -247,6 +247,11 @@ class ApiService {
     return this.api.post(`/public/orders/${donhangid}/paypal/capture`, data);
   }
 
+  // Verify PayPal payment status
+  verifyPaypalPayment(donhangid: number) {
+    return this.api.get(`/public/orders/${donhangid}/verify-payment`);
+  }
+
   confirmOrder(id: number) {
     return this.api.post(`/orders/${id}/confirm`);
   }

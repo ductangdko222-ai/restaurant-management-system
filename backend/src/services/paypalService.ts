@@ -84,6 +84,10 @@ class PayPalService {
     
     console.log(`[PayPalService] Converting amount: ${amount} VND = ${formattedValue} ${PAYPAL_CURRENCY}`);
 
+    const backendUrl = process.env.BACKEND_URL || 'https://restaurant-backend-swoh.onrender.com';
+    const returnUrl = `${backendUrl}/api/public/orders/paypal/return?orderId=${orderId}&status=success`;
+    const cancelUrl = `${backendUrl}/api/public/orders/paypal/return?orderId=${orderId}&status=cancelled`;
+
     const requestBody = {
       intent: 'CAPTURE',
       purchase_units: [{
@@ -97,11 +101,13 @@ class PayPalService {
         brand_name: 'Restaurant Order',
         locale: 'en-US',
         landing_page: 'BILLING',
-        user_action: 'PAY_NOW'
+        user_action: 'PAY_NOW',
+        return_url: returnUrl,
+        cancel_url: cancelUrl
       }
     };
     
-    console.log('[PayPalService] Sending request:', JSON.stringify(requestBody));
+    console.log('[PayPalService] Sending request with return URLs:', { returnUrl, cancelUrl });
     const body = JSON.stringify(requestBody);
 
     const response = await this.request<any>(

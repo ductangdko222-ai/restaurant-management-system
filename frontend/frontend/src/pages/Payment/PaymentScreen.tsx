@@ -153,31 +153,56 @@ const PaymentScreen = () => {
   }, [order, paypalStatus, paypalDialogVisible]);
 
   useEffect(() => {
-    if (!paypalDialogVisible || socketConnected || !order?.id) return;
+    if (!paypalDialogVisible || !order?.id) return;
 
-    console.log('[PaymentScreen] Starting polling for order status every 5s (socket not connected)');
+    console.log('[PaymentScreen] Starting polling for order status every 2s');
     const timer = setInterval(async () => {
       try {
-        console.log('[PaymentScreen Polling] Checking order status for orderId:', order.id);
-        const res = await api.getOrder(order.id);
-        const latestOrder = res.data.data;
-        console.log('[PaymentScreen Polling] Order status:', latestOrder.trangthai);
-        if (latestOrder.trangthai === 'dathanhtoan') {
+        console.log('[PaymentScreen Polling] Checking payment status for orderId:', order.id);
+        const res = await api.verifyPaypalPayment(order.id);
+        const { paid, data: latestOrder } = res.data;
+        console.log('[PaymentScreen Polling] Payment status:', { paid, trangthai: latestOrder?.trangthai });
+        
+        if (paid && latestOrder?.trangthai === 'dathanhtoan') {
           console.log('[PaymentScreen Polling] ✓ Order paid! Clearing polling.');
           setOrder(latestOrder);
           setPaypalStatus('paid');
           setPaypalMessage('Thanh toán PayPal đã hoàn tất.');
           toast.current?.show({ severity: 'success', summary: 'Thanh toán hoàn tất', detail: 'Đơn hàng đã được thanh toán qua PayPal' });
-          setPaypalDialogVisible(true);
           clearInterval(timer);
         }
       } catch (err) {
         console.error('[PaymentScreen Polling] Error:', err);
       }
-    }, 5000);
+    }, 2000);
 
     return () => clearInterval(timer);
-  }, [paypalDialogVisible, socketConnected, order?.id]);
+  }, [paypalDialogVisible, order?.id]);
+
+  const handleCheckPayment = async () => {
+    if (!order?.id) return;
+    
+    console.log('[PaymentScreen] Manual payment check for orderId:', order.id);
+    try {
+      const res = await api.verifyPaypalPayment(order.id);
+      const { paid, data: latestOrder } = res.data;
+      
+      console.log('[PaymentScreen] Payment check result:', { paid, trangthai: latestOrder?.trangthai });
+      
+      if (paid && latestOrder?.trangthai === 'dathanhtoan') {
+        console.log('[PaymentScreen] ✓ Order paid!');
+        setOrder(latestOrder);
+        setPaypalStatus('paid');
+        setPaypalMessage('Thanh toán PayPal đã hoàn tất.');
+        toast.current?.show({ severity: 'success', summary: 'Thanh toán hoàn tất', detail: 'Đơn hàng đã được thanh toán qua PayPal' });
+      } else {
+        toast.current?.show({ severity: 'info', summary: 'Chưa thanh toán', detail: 'Vui lòng hoàn tất thanh toán trên PayPal' });
+      }
+    } catch (error: any) {
+      console.error('[PaymentScreen] Payment check error:', error);
+      toast.current?.show({ severity: 'error', summary: 'Lỗi kiểm tra', detail: 'Không thể kiểm tra trạng thái thanh toán' });
+    }
+  };
 
   const handlePayPalCheckout = async () => {
     if (!order) {
@@ -551,6 +576,14 @@ const PaymentScreen = () => {
               onClick={() => paypalApproveUrl && window.open(paypalApproveUrl, '_blank')}
               style={{ flex: 1 }}
             />
+            {paypalStatus === 'pending' && (
+              <Button
+                label="Kiểm tra"
+                icon="pi pi-refresh"
+                onClick={handleCheckPayment}
+                style={{ flex: 1 }}
+              />
+            )}
             <Button
               label="Đóng"
               severity="secondary"
