@@ -38,7 +38,10 @@ class PayPalService {
               resolve(parsed as T);
             } else {
               const message = parsed?.message || parsed?.details?.[0]?.description || `PayPal API error ${res.statusCode}`;
-              reject(new Error(message));
+              const details = parsed?.details ? JSON.stringify(parsed.details) : '';
+              const fullMessage = details ? `${message} - ${details}` : message;
+              console.error(`[PayPalService] API Error ${res.statusCode}:`, fullMessage);
+              reject(new Error(fullMessage));
             }
           } catch (error) {
             reject(error);
@@ -73,12 +76,20 @@ class PayPalService {
 
   static async createOrder(amount: number, description: string, orderId: number): Promise<any> {
     const accessToken = await this.getAccessToken();
-    const body = JSON.stringify({
+    
+    // Convert VND to USD if needed (exchange rate: 1 USD ≈ 24000 VND)
+    const exchangeRate = Number(process.env.VND_TO_USD_RATE) || 24000;
+    const convertedAmount = PAYPAL_CURRENCY === 'VND' ? amount : Math.round((amount / exchangeRate) * 100) / 100;
+    const formattedValue = convertedAmount.toFixed(2);
+    
+    console.log(`[PayPalService] Converting amount: ${amount} VND = ${formattedValue} ${PAYPAL_CURRENCY}`);
+
+    const requestBody = {
       intent: 'CAPTURE',
       purchase_units: [{
         amount: {
           currency_code: PAYPAL_CURRENCY,
-          value: String(Number(amount).toFixed(2))
+          value: formattedValue
         },
         custom_id: String(orderId)
       }],
@@ -88,7 +99,10 @@ class PayPalService {
         landing_page: 'BILLING',
         user_action: 'PAY_NOW'
       }
-    });
+    };
+    
+    console.log('[PayPalService] Sending request:', JSON.stringify(requestBody));
+    const body = JSON.stringify(requestBody);
 
     const response = await this.request<any>(
       '/v2/checkout/orders',
