@@ -218,6 +218,46 @@ class PaymentController {
     }
   }
 
+  // GET /api/public/orders/paypal/return - Handle PayPal return redirect
+  static async paypalReturnHandler(req: Request, res: Response): Promise<void> {
+    try {
+      const { orderId, status } = req.query;
+      console.log('[PayPal Return] User redirected from PayPal:', { orderId, status });
+
+      if (!orderId || status !== 'success') {
+        console.log('[PayPal Return] Payment cancelled or invalid');
+        // Redirect to payment screen if cancelled
+        res.redirect(`/payment?orderId=${orderId}&paypalStatus=cancelled`);
+        return;
+      }
+
+      // Verify order exists
+      const order = await OrderService.getOrderById(Number(orderId));
+      if (!order) {
+        console.warn('[PayPal Return] Order not found:', orderId);
+        res.redirect(`/payment?orderId=${orderId}&paypalStatus=notfound`);
+        return;
+      }
+
+      console.log('[PayPal Return] Order found:', { id: order.id, madon: order.madon, trangthai: order.trangthai });
+
+      // If already paid, just redirect back
+      if (order.trangthai === 'dathanhtoan') {
+        console.log('[PayPal Return] Order already paid');
+        res.redirect(`/payment?orderId=${orderId}&paypalStatus=completed`);
+        return;
+      }
+
+      // Redirect back to payment screen
+      // Frontend will use polling to check payment status
+      console.log('[PayPal Return] Redirecting to payment screen, frontend will poll for status');
+      res.redirect(`/payment?orderId=${orderId}&paypalStatus=waiting`);
+    } catch (error: any) {
+      console.error('[PayPal Return] Error:', error);
+      res.redirect(`/?error=paypal`);
+    }
+  }
+
   // POST /api/public/orders/:id/paypal/capture
   static async capturePublicPaypalOrder(req: Request, res: Response): Promise<void> {
     try {

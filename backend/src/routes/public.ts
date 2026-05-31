@@ -20,7 +20,9 @@ router.post('/orders/:id/items', OrderController.addItemToPublicOrder);
 router.post('/orders/:id/paypal/create', PaymentController.createPublicPaypalOrder);
 router.post('/orders/:id/paypal/capture', PaymentController.capturePublicPaypalOrder);
 router.post('/paypal/webhook', PaymentController.paypalWebhook);
-// Test webhook - for debugging without real PayPal
+// PayPal webhook test endpoint
 router.post('/paypal/webhook/test/:orderId', (req, res) => PaymentController.testPaypalWebhook(req, res));
+// PayPal return redirect endpoint
+router.get('/orders/paypal/return', (req, res) => PaymentController.paypalReturnHandler(req, res));
 
 export default router;

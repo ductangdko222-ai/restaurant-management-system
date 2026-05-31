@@ -55,6 +55,31 @@ const PaymentScreen = () => {
   const getPaypalCheckoutUrl = (token: string) =>
     `https://${paypalMode === 'sandbox' ? 'www.sandbox.' : 'www.'}paypal.com/checkoutnow?token=${token}`;
 
+  // Handle PayPal return redirect
+  useEffect(() => {
+    const paypalStatus = searchParams.get('paypalStatus');
+    console.log('[PaymentScreen] Checking PayPal return status:', paypalStatus);
+    
+    if (paypalStatus === 'completed') {
+      console.log('[PaymentScreen] Payment already completed, showing success');
+      setPaypalStatus('paid');
+      setPaypalMessage('Thanh toán PayPal đã hoàn tất.');
+      setPaypalDialogVisible(true);
+      toast.current?.show({ severity: 'success', summary: 'Thanh toán hoàn tất', detail: 'Đơn hàng đã được thanh toán qua PayPal' });
+    } else if (paypalStatus === 'waiting') {
+      console.log('[PaymentScreen] Waiting for PayPal payment confirmation, starting polling');
+      setPaypalStatus('pending');
+      setPaypalMessage('Đang chờ xác nhận thanh toán...');
+      setPaypalDialogVisible(true);
+    } else if (paypalStatus === 'cancelled') {
+      console.log('[PaymentScreen] User cancelled PayPal payment');
+      setPaypalStatus('failed');
+      setPaypalMessage('Thanh toán PayPal bị hủy. Vui lòng thử lại.');
+      setPaypalDialogVisible(true);
+      toast.current?.show({ severity: 'warn', summary: 'Thanh toán bị hủy', detail: 'Bạn đã hủy thanh toán PayPal' });
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (orderId) fetchOrder();
     else setLoading(false);

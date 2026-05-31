@@ -71,8 +71,9 @@ class PayPalService {
     return response.access_token;
   }
 
-  static async createOrder(amount: number, description: string, orderId: number): Promise<any> {
+  static async createOrder(amount: number, description: string, orderId: number, returnUrl?: string): Promise<any> {
     const accessToken = await this.getAccessToken();
+    const baseReturnUrl = returnUrl || process.env.PAYPAL_RETURN_URL || 'https://restaurant-backend-swoh.onrender.com/api/public/orders/paypal/return';
     const body = JSON.stringify({
       intent: 'CAPTURE',
       purchase_units: [{
@@ -82,7 +83,12 @@ class PayPalService {
         },
         description,
         custom_id: String(orderId)
-      }]
+      }],
+      application_context: {
+        return_url: `${baseReturnUrl}?orderId=${orderId}&status=success`,
+        cancel_url: `${baseReturnUrl}?orderId=${orderId}&status=cancel`,
+        user_action: 'PAY'
+      }
     });
 
     const response = await this.request<any>(
