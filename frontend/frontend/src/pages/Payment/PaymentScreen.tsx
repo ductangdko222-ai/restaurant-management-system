@@ -49,6 +49,7 @@ const PaymentScreen = () => {
   const [paypalApproveUrl, setPaypalApproveUrl] = useState<string | null>(null);
   const [paypalStatus, setPaypalStatus] = useState<'idle' | 'pending' | 'paid' | 'failed'>('idle');
   const [paypalMessage, setPaypalMessage] = useState<string>('');
+  const [paypalSuccessHandled, setPaypalSuccessHandled] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
 
   const paypalMode = process.env.REACT_APP_PAYPAL_MODE === 'live' ? 'live' : 'sandbox';
@@ -115,7 +116,7 @@ const PaymentScreen = () => {
     const onConnect = () => setSocketConnected(true);
     const onDisconnect = () => setSocketConnected(false);
 
-    const handleSocketOrderUpdated = (payload: any) => {
+    const handleSocketOrderUpdated = async (payload: any) => {
       console.log('[PaymentScreen] Received socket order:updated event:', payload);
       const updatedOrder = payload?.data || payload;
       console.log('[PaymentScreen] Current order id:', order?.id, 'Updated order id:', updatedOrder?.id);
@@ -137,7 +138,7 @@ const PaymentScreen = () => {
       setOrder(updatedOrder);
       setPaypalStatus('paid');
       setPaypalMessage('Thanh toán PayPal đã hoàn tất. Màn hình tự động cập nhật.');
-      setPaypalDialogVisible(true);
+      await fetchInvoiceByOrderId(updatedOrder.id);
       toast.current?.show({ severity: 'success', summary: 'Thanh toán hoàn tất', detail: 'Đơn hàng đã được thanh toán qua PayPal' });
     };
 
@@ -170,6 +171,7 @@ const PaymentScreen = () => {
           setPaypalMessage('Thanh toán PayPal đã hoàn tất.');
           toast.current?.show({ severity: 'success', summary: 'Thanh toán hoàn tất', detail: 'Đơn hàng đã được thanh toán qua PayPal' });
           clearInterval(timer);
+          await fetchInvoiceByOrderId(latestOrder.id);
         }
       } catch (err) {
         console.error('[PaymentScreen Polling] Error:', err);
@@ -178,6 +180,30 @@ const PaymentScreen = () => {
 
     return () => clearInterval(timer);
   }, [paypalDialogVisible, order?.id]);
+
+  useEffect(() => {
+    if (paypalStatus !== 'paid' || !order?.id || order.trangthai !== 'dathanhtoan' || paypalSuccessHandled) {
+      return;
+    }
+
+    fetchInvoiceByOrderId(order.id);
+  }, [paypalStatus, order?.id, order?.trangthai, paypalSuccessHandled]);
+
+  const fetchInvoiceByOrderId = async (donhangid: number) => {
+    try {
+      const res = await api.getInvoiceByOrderId(donhangid);
+      setInvoice(res.data.data);
+      setInvoiceDialog(true);
+      setPaypalDialogVisible(false);
+      setPaypalApproveUrl(null);
+      setPaypalOrderId(null);
+      setPaypalMessage('');
+      setPaypalSuccessHandled(true);
+    } catch (error: any) {
+      console.error('[PaymentScreen] Không thể lấy hóa đơn PayPal:', error);
+      toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải hóa đơn PayPal' });
+    }
+  };
 
   const handleCheckPayment = async () => {
     if (!order?.id) return;
@@ -195,6 +221,7 @@ const PaymentScreen = () => {
         setPaypalStatus('paid');
         setPaypalMessage('Thanh toán PayPal đã hoàn tất.');
         toast.current?.show({ severity: 'success', summary: 'Thanh toán hoàn tất', detail: 'Đơn hàng đã được thanh toán qua PayPal' });
+        await fetchInvoiceByOrderId(latestOrder.id);
       } else {
         toast.current?.show({ severity: 'info', summary: 'Chưa thanh toán', detail: 'Vui lòng hoàn tất thanh toán trên PayPal' });
       }
@@ -212,6 +239,8 @@ const PaymentScreen = () => {
     console.log('[PaymentScreen] Starting PayPal checkout for orderId:', order.id);
     setProcessing(true);
     setPaypalStatus('pending');
+    setPaypalSuccessHandled(false);
+    setInvoice(null);
     setPaypalMessage('Đang tạo đơn PayPal...');
 
     try {

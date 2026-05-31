@@ -442,6 +442,24 @@ class PaymentController {
     }
   }
 
+  //    GET /api/payment/invoices/order/:donhangid
+  static async getInvoiceByOrderId(req: Request, res: Response): Promise<void> {
+    try {
+      const { donhangid } = req.params;
+      const invoice = await PaymentService.getInvoiceByOrderId(Number(donhangid));
+
+      res.json({
+        success: true,
+        data: invoice
+      });
+    } catch (error: any) {
+      res.status(404).json({
+        success: false,
+        message: error.message || 'Không tìm thấy hóa đơn cho đơn hàng này'
+      });
+    }
+  }
+
   //    GET /api/payment/invoices/code/:mahoadon
   static async getInvoiceByCode(req: Request, res: Response): Promise<void> {
     try {

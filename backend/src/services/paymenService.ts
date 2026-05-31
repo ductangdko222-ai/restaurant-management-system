@@ -120,6 +120,19 @@ class PaymentService {
     }
   }
 
+  // Lấy hóa đơn theo đơn hàng
+  static async getInvoiceByOrderId(donhangid: number): Promise<any> {
+    try {
+      const invoiceRow = await Invoice.findByOrderId(donhangid);
+      if (!invoiceRow) throw new Error('Không tìm thấy hóa đơn cho đơn hàng này');
+      const invoice = await Invoice.findById(invoiceRow.id);
+      if (!invoice) throw new Error('Không tìm thấy hóa đơn');
+      return invoice;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Lấy hóa đơn theo mã
   static async getInvoiceByCode(mahoadon: string): Promise<any> {
     try {

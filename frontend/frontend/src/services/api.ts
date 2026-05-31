@@ -310,6 +310,10 @@ class ApiService {
     return this.api.get(`/payment/invoices/${id}`);
   }
 
+  getInvoiceByOrderId(donhangid: number) {
+    return this.api.get(`/payment/invoices/order/${donhangid}`);
+  }
+
   downloadInvoicePDF(id: number) {
     return this.api.get(`/payment/invoices/${id}/pdf`, {
       responseType: 'blob'

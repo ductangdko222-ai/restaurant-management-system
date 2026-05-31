@@ -22,6 +22,9 @@ router.get('/invoices', PaymentController.getAllInvoices);
 // Lấy chi tiết hóa đơn
 router.get('/invoices/:id', PaymentController.getInvoiceById);
 
+// Lấy hóa đơn theo đơn hàng
+router.get('/invoices/order/:donhangid', PaymentController.getInvoiceByOrderId);
+
 // Lấy hóa đơn theo mã
 router.get('/invoices/code/:mahoadon', PaymentController.getInvoiceByCode);
 
