@@ -43,21 +43,28 @@ class PaymentController {
       const { id } = req.params;
       const { description } = req.body;
 
+      console.log('[PayPal Create] Creating PayPal order for orderId:', id);
+
       const order = await OrderService.getOrderById(Number(id));
       if (!order) {
+        console.warn('[PayPal Create] Order not found:', id);
         res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
         return;
       }
 
       const amount = Number(order.tongthanhtoan || order.tongtien || 0);
       if (amount <= 0) {
+        console.warn('[PayPal Create] Invalid amount:', amount);
         res.status(400).json({ success: false, message: 'Số tiền thanh toán không hợp lệ' });
         return;
       }
 
+      console.log('[PayPal Create] Creating PayPal order with amount:', amount, 'for madon:', order.madon);
       const paypalOrder = await PayPalService.createOrder(amount, description || `Thanh toán đơn ${order.madon}`, Number(id));
       const approveUrl = paypalOrder.links?.find((link: any) => link.rel === 'approve')?.href ||
         `https://${PayPalService.getMode() === 'sandbox' ? 'www.sandbox.' : 'www.'}paypal.com/checkoutnow?token=${paypalOrder.id}`;
+
+      console.log('[PayPal Create] PayPal order created:', { paypalOrderId: paypalOrder.id, status: paypalOrder.status });
 
       res.json({
         success: true,
@@ -70,6 +77,7 @@ class PaymentController {
         }
       });
     } catch (error: any) {
+      console.error('[PayPal Create] Error:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'Không thể tạo PayPal order'
@@ -81,52 +89,132 @@ class PaymentController {
   static async paypalWebhook(req: Request, res: Response): Promise<void> {
     try {
       const event = req.body;
+      console.log('[PayPal Webhook] Received webhook:', JSON.stringify(event, null, 2));
+      
       const eventType = event?.event_type;
       const resource = event?.resource || {};
       const paypalOrderId = resource?.id || resource?.order_id;
       const customId = resource?.purchase_units?.[0]?.custom_id || resource?.custom_id;
       const orderId = Number(customId);
 
-      if (!paypalOrderId || !orderId) {
+      console.log('[PayPal Webhook] Extracted data:', { eventType, paypalOrderId, customId, orderId });
+
+      if (!paypalOrderId || !orderId || isNaN(orderId)) {
+        console.warn('[PayPal Webhook] Invalid payload - missing or invalid orderId/paypalOrderId');
         res.status(400).json({ success: false, message: 'Invalid PayPal webhook payload' });
         return;
       }
 
       if (eventType === 'CHECKOUT.ORDER.APPROVED' || eventType === 'PAYMENT.CAPTURE.COMPLETED' || eventType === 'CHECKOUT.ORDER.COMPLETED') {
+        console.log('[PayPal Webhook] Processing event type:', eventType, 'for orderId:', orderId);
+        
         const order = await OrderService.getOrderById(orderId);
         if (!order) {
+          console.warn('[PayPal Webhook] Order not found:', orderId);
           res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
           return;
         }
 
+        console.log('[PayPal Webhook] Order found:', { id: order.id, madon: order.madon, trangthai: order.trangthai });
+
         if (order.trangthai === 'dathanhtoan') {
+          console.log('[PayPal Webhook] Order already paid:', orderId);
           res.json({ success: true, message: 'Order đã được thanh toán trước đó' });
           return;
         }
 
-        if (eventType === 'CHECKOUT.ORDER.APPROVED') {
-          await PayPalService.captureOrder(paypalOrderId);
+        try {
+          if (eventType === 'CHECKOUT.ORDER.APPROVED') {
+            console.log('[PayPal Webhook] Capturing PayPal order:', paypalOrderId);
+            await PayPalService.captureOrder(paypalOrderId);
+            console.log('[PayPal Webhook] Capture successful');
+          }
+        } catch (captureError: any) {
+          console.error('[PayPal Webhook] Capture failed:', captureError.message);
+          // Không dừng luồng, tiếp tục xử lý payment
         }
 
-        const amount = Number(order.tongthanhtoan || order.tongtien || 0);
-        await PaymentService.processPayment({
-          donhangid: order.id,
-          nguoithunganid: null,
-          phuongthucthanhtoan: PhuongThucThanhToan.PAYPAL,
-          tienkhacdua: amount,
-          tongthanhtoan: amount,
-          tienthua: 0,
-          ghichu: `Thanh toán PayPal: ${paypalOrderId}`
-        });
+        try {
+          const amount = Number(order.tongthanhtoan || order.tongtien || 0);
+          console.log('[PayPal Webhook] Processing payment with amount:', amount);
+          
+          const invoice = await PaymentService.processPayment({
+            donhangid: order.id,
+            nguoithunganid: null,
+            phuongthucthanhtoan: PhuongThucThanhToan.PAYPAL,
+            tienkhacdua: amount,
+            tongthanhtoan: amount,
+            tienthua: 0,
+            ghichu: `Thanh toán PayPal: ${paypalOrderId}`
+          });
+          console.log('[PayPal Webhook] Payment processed successfully:', { invoiceId: invoice?.id, mahoadon: invoice?.mahoadon });
+        } catch (paymentError: any) {
+          console.error('[PayPal Webhook] Payment processing failed:', paymentError.message);
+          throw paymentError;
+        }
 
+        console.log('[PayPal Webhook] Webhook processed successfully for orderId:', orderId);
         res.json({ success: true, message: 'Webhook PayPal đã xử lý thành công' });
         return;
       }
 
+      console.log('[PayPal Webhook] Event type not handled:', eventType);
       res.json({ success: true, message: 'Webhook PayPal không cần xử lý event này' });
     } catch (error: any) {
-      console.error('[PayPal Webhook] Error:', error);
+      console.log('[PayPal Webhook] Unhandled error:', error);
       res.status(500).json({ success: false, message: error.message || 'Lỗi khi xử lý webhook PayPal' });
+    }
+  }
+
+  // POST /api/public/paypal/webhook/test/:orderId - Test endpoint for debugging
+  static async testPaypalWebhook(req: Request, res: Response): Promise<void> {
+    try {
+      const { orderId } = req.params;
+      console.log('[PayPal Test Webhook] Simulating PayPal webhook for orderId:', orderId);
+
+      if (!orderId || isNaN(Number(orderId))) {
+        res.status(400).json({ success: false, message: 'Invalid orderId' });
+        return;
+      }
+
+      const order = await OrderService.getOrderById(Number(orderId));
+      if (!order) {
+        console.warn('[PayPal Test Webhook] Order not found:', orderId);
+        res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+        return;
+      }
+
+      console.log('[PayPal Test Webhook] Order found:', { id: order.id, madon: order.madon, trangthai: order.trangthai });
+
+      if (order.trangthai === 'dathanhtoan') {
+        console.log('[PayPal Test Webhook] Order already paid');
+        res.json({ success: true, message: 'Order đã được thanh toán trước đó' });
+        return;
+      }
+
+      const amount = Number(order.tongthanhtoan || order.tongtien || 0);
+      console.log('[PayPal Test Webhook] Processing payment with amount:', amount);
+
+      const invoice = await PaymentService.processPayment({
+        donhangid: order.id,
+        nguoithunganid: null,
+        phuongthucthanhtoan: PhuongThucThanhToan.PAYPAL,
+        tienkhacdua: amount,
+        tongthanhtoan: amount,
+        tienthua: 0,
+        ghichu: 'Test: Thanh toán PayPal (Webhook Test)'
+      });
+
+      console.log('[PayPal Test Webhook] Payment processed successfully:', { invoiceId: invoice?.id, mahoadon: invoice?.mahoadon });
+
+      res.json({
+        success: true,
+        message: 'Test webhook xử lý thành công. Kiểm tra frontend để xem trạng thái cập nhật.',
+        data: { invoice, order: { id: order.id, madon: order.madon } }
+      });
+    } catch (error: any) {
+      console.error('[PayPal Test Webhook] Error:', error);
+      res.status(500).json({ success: false, message: error.message || 'Lỗi khi test webhook PayPal' });
     }
   }
 

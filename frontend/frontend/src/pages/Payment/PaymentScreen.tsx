@@ -91,11 +91,24 @@ const PaymentScreen = () => {
     const onDisconnect = () => setSocketConnected(false);
 
     const handleSocketOrderUpdated = (payload: any) => {
+      console.log('[PaymentScreen] Received socket order:updated event:', payload);
       const updatedOrder = payload?.data || payload;
-      if (!order || !updatedOrder || updatedOrder.id !== order.id) return;
-      if (updatedOrder.trangthai !== 'dathanhtoan') return;
-      if (paypalStatus !== 'pending' && !paypalDialogVisible) return;
+      console.log('[PaymentScreen] Current order id:', order?.id, 'Updated order id:', updatedOrder?.id);
+      if (!order || !updatedOrder || updatedOrder.id !== order.id) {
+        console.log('[PaymentScreen] Order mismatch or invalid, skipping');
+        return;
+      }
+      console.log('[PaymentScreen] Order trangthai:', updatedOrder.trangthai, 'paypalStatus:', paypalStatus);
+      if (updatedOrder.trangthai !== 'dathanhtoan') {
+        console.log('[PaymentScreen] Order not paid yet, skipping');
+        return;
+      }
+      if (paypalStatus !== 'pending' && !paypalDialogVisible) {
+        console.log('[PaymentScreen] PayPal dialog not active or not pending, skipping');
+        return;
+      }
 
+      console.log('[PaymentScreen] ✓ Updating order status to paid');
       setOrder(updatedOrder);
       setPaypalStatus('paid');
       setPaypalMessage('Thanh toán PayPal đã hoàn tất. Màn hình tự động cập nhật.');
@@ -112,16 +125,20 @@ const PaymentScreen = () => {
       socket.off('disconnect', onDisconnect);
       socket.off('order:updated', handleSocketOrderUpdated);
     };
-  }, [order]);
+  }, [order, paypalStatus, paypalDialogVisible]);
 
   useEffect(() => {
     if (!paypalDialogVisible || socketConnected || !order?.id) return;
 
+    console.log('[PaymentScreen] Starting polling for order status every 5s (socket not connected)');
     const timer = setInterval(async () => {
       try {
+        console.log('[PaymentScreen Polling] Checking order status for orderId:', order.id);
         const res = await api.getOrder(order.id);
         const latestOrder = res.data.data;
+        console.log('[PaymentScreen Polling] Order status:', latestOrder.trangthai);
         if (latestOrder.trangthai === 'dathanhtoan') {
+          console.log('[PaymentScreen Polling] ✓ Order paid! Clearing polling.');
           setOrder(latestOrder);
           setPaypalStatus('paid');
           setPaypalMessage('Thanh toán PayPal đã hoàn tất.');
@@ -129,8 +146,8 @@ const PaymentScreen = () => {
           setPaypalDialogVisible(true);
           clearInterval(timer);
         }
-      } catch {
-        // ignore polling errors
+      } catch (err) {
+        console.error('[PaymentScreen Polling] Error:', err);
       }
     }, 5000);
 
@@ -138,16 +155,22 @@ const PaymentScreen = () => {
   }, [paypalDialogVisible, socketConnected, order?.id]);
 
   const handlePayPalCheckout = async () => {
-    if (!order) return;
+    if (!order) {
+      console.error('[PaymentScreen] No order found, cannot proceed with PayPal');
+      return;
+    }
+    console.log('[PaymentScreen] Starting PayPal checkout for orderId:', order.id);
     setProcessing(true);
     setPaypalStatus('pending');
     setPaypalMessage('Đang tạo đơn PayPal...');
 
     try {
+      console.log('[PaymentScreen] Creating PayPal order...');
       const res = await api.createPublicPaypalOrder(order.id, {
         description: `Thanh toán đơn ${order.madon}`
       });
       const data = res.data.data;
+      console.log('[PaymentScreen] PayPal order created:', { orderId: data.orderId, approveUrl: !!data.approveUrl });
       const approveUrl = data.approveUrl || getPaypalCheckoutUrl(data.orderId);
 
       setPaypalOrderId(data.orderId);
@@ -156,7 +179,9 @@ const PaymentScreen = () => {
       setPaypalMessage('Quét mã QR để thanh toán PayPal. Hệ thống sẽ tự động nhận thông báo khi giao dịch hoàn tất.');
       setPaypalDialogVisible(true);
       toast.current?.show({ severity: 'info', summary: 'Đang chờ PayPal', detail: 'Quét mã QR để hoàn tất thanh toán.' });
+      console.log('[PaymentScreen] PayPal dialog opened, awaiting payment...');
     } catch (error: any) {
+      console.error('[PaymentScreen] PayPal checkout error:', error);
       toast.current?.show({ severity: 'error', summary: 'Lỗi PayPal', detail: error.response?.data?.message || error.message || 'Không thể tạo yêu cầu PayPal' });
       setPaypalStatus('failed');
       setPaypalMessage('Không thể tạo yêu cầu PayPal. Vui lòng thử lại.');
