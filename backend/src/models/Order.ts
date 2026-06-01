@@ -76,20 +76,18 @@ class Order {
 
       if (filters?.trangthai) {
         if (filters.trangthai === 'choxacnhan') {
-          query += ` AND (
-            d.trangthai = ?
-            OR (d.trangthai = ? AND EXISTS (
-              SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai IN ('danglam', 'sansang')
-            ))
-            OR (d.trangthai = ? AND h.phuongthucthanhtoan = ?)
-          )`;
-          params.push(filters.trangthai, 'dangphucvu', 'dathanhtoan', 'paypal');
+          // Chỉ hiện những order chưa xác nhận (status = choxacnhan)
+          // Không hiện những order đã thanh toán
+          query += ` AND d.trangthai = ?`;
+          params.push(filters.trangthai);
         } else if (filters.trangthai === 'dangphucvu') {
+          // Hiện những order đang phục vụ có items chưa hoàn thành
           query += ` AND d.trangthai = ? AND EXISTS (
-            SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai = ?
+            SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai != ?
           )`;
-          params.push(filters.trangthai, 'moi');
+          params.push(filters.trangthai, 'daphucvu');
         } else {
+          // Các trạng thái khác: chothanhtoan, dathanhtoan, dahuy
           query += ' AND d.trangthai = ?';
           params.push(filters.trangthai);
         }
