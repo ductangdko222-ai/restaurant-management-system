@@ -20,6 +20,7 @@ export interface IDonHang {
     ghichu?:string;
     thoigiantao: Date;
     thoigiancapnhap:Date;
+    chitiet?: IChiTietDonHang[];
 }
 
 export interface IChiTietDonHang{

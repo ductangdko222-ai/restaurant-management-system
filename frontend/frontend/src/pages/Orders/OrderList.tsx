@@ -7,6 +7,7 @@ import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { connectSocket } from '../../services/socketClient';
 import { useAuth } from '../../context/AuthContext';
 import { DonHang, ChiTietMon } from '../../types/orders';
 
@@ -160,6 +161,25 @@ const OrderList = () => {
   useEffect(() => { fetchOrders(); }, [filterStatus, currentPage]);
   useEffect(() => { fetchStatusCounts(); }, []);
 
+  // Socket listener để cập nhật khi order status thay đổi
+  useEffect(() => {
+    const socket = connectSocket();
+    
+    const handleOrderUpdated = () => {
+      // Khi order được update, refresh danh sách để loại bỏ các order không còn khớp filter
+      setTimeout(() => {
+        fetchOrders();
+        fetchStatusCounts();
+      }, 300);
+    };
+
+    socket.on('order-updated', handleOrderUpdated);
+
+    return () => {
+      socket.off('order-updated', handleOrderUpdated);
+    };
+  }, []);
+
   const fetchStatusCounts = async () => {
     try {
       const statuses = STATUS_TABS.map(t => t.status);
@@ -277,9 +297,12 @@ const OrderList = () => {
   const handleConfirmOrder = async (order: DonHang) => {
     try {
       await api.confirmOrder(order.id);
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, trangthai: 'dangphucvu' } : o));
-      setSelectedOrder(prev => prev ? { ...prev, trangthai: 'dangphucvu' } : prev);
+      // Loại đơn khỏi danh sách vì nó đã chuyển sang "đang phục vụ"
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      setDetailDialog(false);
       toast.current?.show({ severity: 'success', summary: 'Xác nhận đơn', detail: `Đơn ${order.madon} đã xác nhận` });
+      // Refresh status counts
+      fetchStatusCounts();
     } catch {
       toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không thể xác nhận đơn' });
     }
