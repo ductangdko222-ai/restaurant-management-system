@@ -161,20 +161,17 @@ const OrderList = () => {
   useEffect(() => { fetchOrders(); }, [filterStatus, currentPage]);
   useEffect(() => { fetchStatusCounts(); }, []);
 
-  // Socket listener để cập nhật khi order status thay đổi
+  // Socket listener: khi order status thay đổi (từ xác nhận, từ all items served, từ PayPal, etc)
   useEffect(() => {
     const socket = connectSocket();
-    
     const handleOrderUpdated = () => {
-      // Khi order được update, refresh danh sách để loại bỏ các order không còn khớp filter
+      // Refresh danh sách để cập nhật trạng thái và loại bỏ những order không còn khớp filter
       setTimeout(() => {
         fetchOrders();
         fetchStatusCounts();
       }, 300);
     };
-
     socket.on('order-updated', handleOrderUpdated);
-
     return () => {
       socket.off('order-updated', handleOrderUpdated);
     };
@@ -246,9 +243,11 @@ const OrderList = () => {
 
       if (chitiet.length > 0 && allItemsServed(chitiet) && order.trangthai === 'dangphucvu') {
         await api.updateOrderStatus(order.id, 'chothanhtoan');
-        const patch = (o: DonHang) => o.id === order.id ? { ...o, trangthai: 'chothanhtoan' } : o;
-        setOrders(prev => prev.map(patch));
+        // Loại đơn khỏi danh sách hiện tại vì nó chuyển sang 'chothanhtoan'
+        setOrders(prev => prev.filter(o => o.id !== order.id));
         setSelectedOrder(prev => prev ? { ...prev, trangthai: 'chothanhtoan' } : prev);
+        // Refresh status counts
+        fetchStatusCounts();
       }
     } catch {
       toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải chi tiết' });
@@ -266,10 +265,12 @@ const OrderList = () => {
       if (selectedOrder && updated.every(i => i.trangthai === 'daphucvu')) {
         if (selectedOrder.trangthai !== 'dathanhtoan') {
           await api.updateOrderStatus(selectedOrder.id, 'chothanhtoan');
-          const patch = (o: DonHang) => o.id === selectedOrder.id ? { ...o, trangthai: 'chothanhtoan' } : o;
-          setOrders(prev => prev.map(patch));
+          // Loại đơn khỏi danh sách hiện tại vì nó chuyển sang 'chothanhtoan'
+          setOrders(prev => prev.filter(o => o.id !== selectedOrder.id));
           setSelectedOrder(prev => prev ? { ...prev, trangthai: 'chothanhtoan' } : prev);
           toast.current?.show({ severity: 'success', summary: 'Hoàn tất', detail: 'Tất cả món đã phục vụ — sẵn sàng thanh toán' });
+          // Refresh status counts
+          fetchStatusCounts();
         } else {
           toast.current?.show({ severity: 'success', summary: 'Hoàn tất', detail: 'Tất cả món đã phục vụ — đơn đã thanh toán' });
         }
@@ -297,7 +298,7 @@ const OrderList = () => {
   const handleConfirmOrder = async (order: DonHang) => {
     try {
       await api.confirmOrder(order.id);
-      // Loại đơn khỏi danh sách vì nó đã chuyển sang "đang phục vụ"
+      // Loại đơn khỏi danh sách vì nó đã chuyển sang 'dangphucvu' (hoặc status khác)
       setOrders(prev => prev.filter(o => o.id !== order.id));
       setDetailDialog(false);
       toast.current?.show({ severity: 'success', summary: 'Xác nhận đơn', detail: `Đơn ${order.madon} đã xác nhận` });
