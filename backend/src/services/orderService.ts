@@ -10,6 +10,7 @@ class OrderService {
     try {
       let orders = await Order.findAll(filters);
       
+      // Nếu filter theo choxacnhan, chỉ lấy những đơn có item chưa phục vụ
       if (filters?.trangthai === TrangThaiDonHang.CHO_XAC_NHAN) {
         orders = orders.filter(order => {
           const hasUnservedItems = order.chitiet?.some((item: any) => item.trangthai !== TrangThaiChiTiet.DA_PHUC_VU);
