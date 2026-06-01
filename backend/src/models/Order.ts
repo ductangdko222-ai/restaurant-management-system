@@ -69,25 +69,27 @@ class Order {
         FROM donhang d
         LEFT JOIN ban b ON d.banid = b.id
         LEFT JOIN nguoidung nd ON d.nguoiphucvuid = nd.id
-        LEFT JOIN hoadon h ON h.donhangid = d.id
         WHERE 1=1
       `;
       const params: any[] = [];
 
       if (filters?.trangthai) {
         if (filters.trangthai === 'choxacnhan') {
-          // Chỉ hiện những order chưa xác nhận (status = choxacnhan)
-          // Không hiện những order đã thanh toán
-          query += ` AND d.trangthai = ?`;
-          params.push(filters.trangthai);
-        } else if (filters.trangthai === 'dangphucvu') {
-          // Hiện những order đang phục vụ có items chưa hoàn thành
-          query += ` AND d.trangthai = ? AND EXISTS (
-            SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai != ?
+          // Hiện tất cả order chờ xác nhận + order nào có món sẵn sàng (sansang)
+          // Bất kể order đó thanh toán rồi hay chưa
+          query += ` AND (
+            d.trangthai = ?
+            OR EXISTS (
+              SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai = ?
+            )
           )`;
-          params.push(filters.trangthai, 'daphucvu');
+          params.push('choxacnhan', 'sansang');
+        } else if (filters.trangthai === 'dangphucvu') {
+          query += ` AND d.trangthai = ? AND EXISTS (
+            SELECT 1 FROM chitietdonhang ct WHERE ct.donhangid = d.id AND ct.trangthai IN (?, ?)
+          )`;
+          params.push(filters.trangthai, 'moi', 'danglam');
         } else {
-          // Các trạng thái khác: chothanhtoan, dathanhtoan, dahuy
           query += ' AND d.trangthai = ?';
           params.push(filters.trangthai);
         }
